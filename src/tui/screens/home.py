@@ -90,6 +90,8 @@ class HomeScreen(Screen):
         Binding("q", "quit_app", "離開"),
         Binding("up", "navigate_up", "向上"),
         Binding("down", "navigate_down", "向下"),
+        Binding("left", "level_down", "降低級別"),
+        Binding("right", "level_up", "提高級別"),
         Binding("enter", "select_current", "選擇"),
     ]
 
@@ -98,6 +100,7 @@ class HomeScreen(Screen):
         super().__init__()
         self.quiz_engine = QuizEngine()
         self.focused_index = 0  # 聚焦的按鈕索引 (0-5)
+        self.selected_level = 1  # 選擇的學習級別 (1-6)
         self.button_ids = [
             "btn_review",
             "btn_new",
@@ -113,6 +116,9 @@ class HomeScreen(Screen):
         stats = self.quiz_engine.get_study_session_summary()
         due_words = self.quiz_engine.get_quiz_words(mode="review", limit=500)
         favorite_count = len(self.quiz_engine.get_quiz_words(mode="favorite"))
+
+        # 取得當前選擇 Level 的新單字數量
+        new_words_count = self._get_new_words_count(self.selected_level)
 
         with Container(classes="main-container"):
             yield Label("📚 7000 單字學習系統", classes="title")
@@ -131,7 +137,7 @@ class HomeScreen(Screen):
                     classes="menu-button",
                 )
                 yield Button(
-                    "[2] 🆕 學習新單字          按級別選擇",
+                    f"[2] 🆕 學習新單字          ◀ Level {self.selected_level} ▶  ({new_words_count} 個)",
                     id="btn_new",
                     classes="menu-button",
                 )
@@ -150,6 +156,18 @@ class HomeScreen(Screen):
                 )
 
                 yield Button("[Q] 離開", id="btn_quit", classes="menu-button")
+
+    def _get_new_words_count(self, level: int) -> int:
+        """取得指定 Level 的新單字數量
+
+        Args:
+            level: 級別 (1-6)
+
+        Returns:
+            新單字數量
+        """
+        new_words = self.quiz_engine.get_quiz_words(mode="new", level=level, limit=1000)
+        return len(new_words)
 
     def on_mount(self) -> None:
         """畫面載入時設置初始聚焦"""
@@ -175,6 +193,28 @@ class HomeScreen(Screen):
         if self.focused_index < len(self.button_ids) - 1:
             self.focused_index += 1
             self._update_focus()
+
+    def action_level_up(self) -> None:
+        """提高 Level（按 →）"""
+        # 只有在聚焦「學習新單字」按鈕時才有效
+        if self.focused_index == 1:  # btn_new 的索引
+            if self.selected_level < 6:
+                self.selected_level += 1
+                self._update_new_button()
+
+    def action_level_down(self) -> None:
+        """降低 Level（按 ←）"""
+        # 只有在聚焦「學習新單字」按鈕時才有效
+        if self.focused_index == 1:  # btn_new 的索引
+            if self.selected_level > 1:
+                self.selected_level -= 1
+                self._update_new_button()
+
+    def _update_new_button(self) -> None:
+        """更新「學習新單字」按鈕的文字"""
+        new_words_count = self._get_new_words_count(self.selected_level)
+        button = self.query_one("#btn_new", Button)
+        button.label = f"[2] 🆕 學習新單字          ◀ Level {self.selected_level} ▶  ({new_words_count} 個)"
 
     def action_select_current(self) -> None:
         """選擇當前聚焦的選項"""
@@ -220,9 +260,8 @@ class HomeScreen(Screen):
         """學習新單字"""
         from tui.screens.study import StudyScreen
 
-        # TODO: 應該先讓用戶選擇級別，再進入學習畫面
-        # 這裡暫時預設 Level 1
-        self.app.push_screen(StudyScreen(mode="new", level=1))
+        # 使用用戶選擇的 Level
+        self.app.push_screen(StudyScreen(mode="new", level=self.selected_level))
 
     def action_start_favorites(self) -> None:
         """複習收藏的難詞"""
