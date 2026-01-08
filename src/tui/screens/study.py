@@ -148,9 +148,9 @@ class StudyScreen(Screen):
     BINDINGS = [
         Binding("escape", "go_back", "返回"),
         Binding("space", "reveal_answer", "顯示答案"),
-        Binding("left", "navigate_left", "選擇左側"),
-        Binding("right", "navigate_right", "選擇右側"),
-        Binding("enter", "select_button", "確認"),
+        Binding("up", "go_previous", "上一題"),
+        Binding("left", "select_dont_know", "不會"),
+        Binding("right", "select_know", "會"),
     ]
 
     def __init__(self, mode: str = "review", level: int = None):
@@ -170,6 +170,7 @@ class StudyScreen(Screen):
         self.show_answer = False  # 是否顯示答案面
         self.wrong_words = []  # 答錯的單字列表
         self.focused_button = 0  # 聚焦的按鈕索引 (0=不會, 1=會)
+        self.history = []  # 歷史記錄用於返回上一題
 
     def compose(self) -> ComposeResult:
         """組合 UI 元件"""
@@ -284,7 +285,7 @@ class StudyScreen(Screen):
         self.query_one("#translation_text").display = True
 
         # 隱藏提示，顯示按鈕說明
-        self.query_one("#hint_text").update("使用 ← → 選擇，Enter 確認")
+        self.query_one("#hint_text").update("← 不會    → 會    ↑ 上一題")
 
         # 顯示二元評分按鈕並設置聚焦
         self.query_one("#binary_buttons").display = True
@@ -303,29 +304,38 @@ class StudyScreen(Screen):
             dont_know_btn.remove_class("binary-button-focused")
             know_btn.add_class("binary-button-focused")
 
-    def action_navigate_left(self) -> None:
-        """向左導航（選擇「不會」）"""
+    def action_select_dont_know(self) -> None:
+        """選擇「不會」（按 ←）"""
         if not self.show_answer:
             return
         self.focused_button = 0
         self._update_button_focus()
+        # 直接提交答案
+        self.handle_binary_answer(know=False)
 
-    def action_navigate_right(self) -> None:
-        """向右導航（選擇「會」）"""
+    def action_select_know(self) -> None:
+        """選擇「會」（按 →）"""
         if not self.show_answer:
             return
         self.focused_button = 1
         self._update_button_focus()
+        # 直接提交答案
+        self.handle_binary_answer(know=True)
 
-    def action_select_button(self) -> None:
-        """確認選擇（Enter）"""
-        if not self.show_answer:
+    def action_go_previous(self) -> None:
+        """返回上一題（按 ↑）"""
+        if not self.history:
+            self.app.notify("已經是第一題了", severity="information")
             return
 
-        if self.focused_button == 0:
-            self.handle_binary_answer(know=False)
-        else:
-            self.handle_binary_answer(know=True)
+        # 從歷史記錄恢復
+        prev_state = self.history.pop()
+        self.current_index = prev_state["index"]
+        self.current_word = prev_state["word"]
+        self.show_answer = False
+
+        # 更新 UI
+        self._display_question()
 
     def handle_binary_answer(self, know: bool) -> None:
         """處理二元答題結果
@@ -335,6 +345,11 @@ class StudyScreen(Screen):
         """
         if not self.current_word:
             return
+
+        # 保存到歷史記錄（用於返回上一題）
+        self.history.append(
+            {"index": self.current_index, "word": self.current_word.copy()}
+        )
 
         # 更新學習進度（使用二元評分）
         is_new_word = self.mode == "new"
@@ -357,6 +372,29 @@ class StudyScreen(Screen):
 
         # 短暫延遲後進入下一題
         self.set_timer(1.0, self.next_word)
+
+    def _display_question(self) -> None:
+        """顯示問題面（用於返回上一題）"""
+        # 更新進度
+        progress_text = f"進度: {self.current_index + 1}/{len(self.words)}"
+        self.query_one("#progress_bar").update(progress_text)
+
+        # 顯示問題面
+        self.query_one("#word_text").update(self.current_word["word"])
+        self.query_one("#phonetic_text").update(f"[{self.current_word['phonetic']}]")
+        self.query_one("#pos_text").update(self.current_word["part_of_speech"])
+
+        # 隱藏答案面
+        self.query_one("#translation_text").update("")
+        self.query_one("#translation_text").display = False
+
+        # 顯示提示
+        self.query_one("#hint_text").update("[按空格顯示答案]")
+        self.query_one("#hint_text").display = True
+
+        # 隱藏按鈕和回饋
+        self.query_one("#binary_buttons").display = False
+        self.query_one("#feedback_text").update("")
 
     def next_word(self) -> None:
         """進入下一個單字"""
