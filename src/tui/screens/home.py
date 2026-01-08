@@ -258,6 +258,17 @@ class HomeScreen(Screen):
 
     def action_start_new(self) -> None:
         """學習新單字"""
+        # Debug 日誌
+        try:
+            with open("/tmp/vocab_study_debug.log", "a") as f:
+                from datetime import datetime
+
+                f.write(
+                    f"{datetime.now()} - home.py action_start_new() called with level={self.selected_level}\n"
+                )
+        except:
+            pass
+
         from tui.screens.study import StudyScreen
 
         # 使用用戶選擇的 Level

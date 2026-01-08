@@ -7,6 +7,18 @@ import sys
 
 sys.path.insert(0, "/Users/bs10081/Developer/7000-english-vocabulary-trainer/src")
 
+
+def debug_log(msg):
+    """簡單的 debug 日誌函數"""
+    try:
+        with open("/tmp/vocab_study_debug.log", "a") as f:
+            from datetime import datetime
+
+            f.write(f"{datetime.now()} - {msg}\n")
+    except:
+        pass
+
+
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -163,6 +175,7 @@ class StudyScreen(Screen):
         super().__init__()
         self.mode = mode
         self.level = level
+        debug_log(f"__init__() - mode={mode}, level={level}")
         self.quiz_engine = QuizEngine()
         self.words = []
         self.current_index = 0
@@ -180,9 +193,17 @@ class StudyScreen(Screen):
         """組合 UI 元件"""
         # 取得單字
         if self.mode == "new":
+            debug_log(f"compose() - mode={self.mode}, level={self.level}")
             self.words = self.quiz_engine.get_quiz_words(
                 mode="new", level=self.level, limit=50
             )
+            debug_log(f"compose() - 取得 {len(self.words)} 個單字")
+            # 使用通知顯示 debug 資訊
+            if hasattr(self, "app"):
+                self.app.notify(
+                    f"DEBUG: compose() 取得 {len(self.words)} 個單字",
+                    severity="information",
+                )
             mode_text = f"學習新單字 (Level {self.level})"
         elif self.mode == "favorite":
             self.words = self.quiz_engine.get_quiz_words(mode="favorite")
@@ -234,12 +255,35 @@ class StudyScreen(Screen):
             return
         self._mounted = True
 
+        debug_log(
+            f"on_mount() - words count: {len(self.words)}, mode={self.mode}, level={self.level}"
+        )
+
+        # 如果 words 是空的，嘗試重新載入
         if not self.words:
+            debug_log("on_mount() - words 是空的，嘗試重新載入")
+            if self.mode == "new":
+                self.words = self.quiz_engine.get_quiz_words(
+                    mode="new", level=self.level, limit=50
+                )
+                debug_log(f"on_mount() - 重新載入後: {len(self.words)} 個單字")
+            elif self.mode == "favorite":
+                self.words = self.quiz_engine.get_quiz_words(mode="favorite")
+            elif self.mode == "review":
+                self.words = self.quiz_engine.get_quiz_words(mode="review", limit=50)
+
+        self.app.notify(
+            f"DEBUG: on_mount() 檢查到 {len(self.words)} 個單字", severity="information"
+        )
+
+        if not self.words:
+            debug_log("on_mount() - 依然沒有單字，準備關閉螢幕")
             self.app.notify("沒有單字可以學習", severity="warning")
             # 延遲關閉螢幕，避免在初始化時立即 pop
             self.set_timer(0.5, self._safe_pop_screen)
             return
 
+        debug_log("on_mount() - 開始顯示單字")
         self.show_next_word()
 
     def show_next_word(self) -> None:
