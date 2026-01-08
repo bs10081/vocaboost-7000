@@ -233,8 +233,8 @@ class StudyScreen(Screen):
 
         if not self.words:
             self.app.notify("沒有單字可以學習", severity="warning")
-            # 使用 call_after_refresh 確保在下一個渲染週期後再 pop
-            self.call_after_refresh(self.app.pop_screen)
+            # 延遲關閉螢幕，避免在初始化時立即 pop
+            self.set_timer(0.5, lambda: self.app.pop_screen())
             return
 
         self.show_next_word()
