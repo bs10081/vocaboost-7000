@@ -171,6 +171,7 @@ class StudyScreen(Screen):
         self.wrong_words = []  # 答錯的單字列表
         self.focused_button = 0  # 聚焦的按鈕索引 (0=不會, 1=會)
         self.history = []  # 歷史記錄用於返回上一題
+        self._mounted = False  # 防止重複 mount
 
     def compose(self) -> ComposeResult:
         """組合 UI 元件"""
@@ -225,9 +226,15 @@ class StudyScreen(Screen):
 
     def on_mount(self) -> None:
         """畫面載入時執行"""
+        # 防止重複執行
+        if self._mounted:
+            return
+        self._mounted = True
+
         if not self.words:
             self.app.notify("沒有單字可以學習", severity="warning")
-            self.app.pop_screen()
+            # 使用 call_after_refresh 確保在下一個渲染週期後再 pop
+            self.call_after_refresh(self.app.pop_screen)
             return
 
         self.show_next_word()
