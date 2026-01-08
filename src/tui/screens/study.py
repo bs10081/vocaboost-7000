@@ -172,6 +172,9 @@ class StudyScreen(Screen):
         self.focused_button = 0  # 聚焦的按鈕索引 (0=不會, 1=會)
         self.history = []  # 歷史記錄用於返回上一題
         self._mounted = False  # 防止重複 mount
+        self._is_active = True  # 螢幕是否活躍
+        self._processing = False  # 是否正在處理答案
+        self._db_closed = False  # 資料庫是否已關閉
 
     def compose(self) -> ComposeResult:
         """組合 UI 元件"""
@@ -234,7 +237,7 @@ class StudyScreen(Screen):
         if not self.words:
             self.app.notify("沒有單字可以學習", severity="warning")
             # 延遲關閉螢幕，避免在初始化時立即 pop
-            self.set_timer(0.5, lambda: self.app.pop_screen())
+            self.set_timer(0.5, self._safe_pop_screen)
             return
 
         self.show_next_word()
@@ -313,7 +316,7 @@ class StudyScreen(Screen):
 
     def action_select_dont_know(self) -> None:
         """選擇「不會」（按 ←）"""
-        if not self.show_answer:
+        if not self.show_answer or self._processing:
             return
         self.focused_button = 0
         self._update_button_focus()
@@ -322,7 +325,7 @@ class StudyScreen(Screen):
 
     def action_select_know(self) -> None:
         """選擇「會」（按 →）"""
-        if not self.show_answer:
+        if not self.show_answer or self._processing:
             return
         self.focused_button = 1
         self._update_button_focus()
@@ -350,8 +353,10 @@ class StudyScreen(Screen):
         Args:
             know: True 表示「會」，False 表示「不會」
         """
-        if not self.current_word:
+        if not self.current_word or self._processing:
             return
+
+        self._processing = True  # 防止重複提交
 
         # 保存到歷史記錄（用於返回上一題）
         self.history.append(
@@ -377,8 +382,8 @@ class StudyScreen(Screen):
             if self.current_word not in self.wrong_words:
                 self.wrong_words.append(self.current_word)
 
-        # 短暫延遲後進入下一題
-        self.set_timer(1.0, self.next_word)
+        # 短暫延遲後進入下一題（使用安全方法）
+        self.set_timer(1.0, self._safe_next_word)
 
     def _display_question(self) -> None:
         """顯示問題面（用於返回上一題）"""
@@ -407,6 +412,12 @@ class StudyScreen(Screen):
         """進入下一個單字"""
         self.current_index += 1
         self.show_next_word()
+
+    def _safe_next_word(self) -> None:
+        """安全地進入下一題（檢查螢幕狀態）"""
+        if self._is_active:
+            self._processing = False
+            self.next_word()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """處理按鈕點擊"""
@@ -437,11 +448,23 @@ class StudyScreen(Screen):
         self.query_one("#feedback_text").update("")
         self.query_one("#binary_buttons").display = False
 
+    def _safe_pop_screen(self) -> None:
+        """安全地關閉螢幕"""
+        if self._is_active:
+            self._is_active = False
+            self.app.pop_screen()
+
     def action_go_back(self) -> None:
         """返回主選單"""
-        self.quiz_engine.close()
+        self._is_active = False
+        if not self._db_closed:
+            self.quiz_engine.close()
+            self._db_closed = True
         self.app.pop_screen()
 
     def on_unmount(self):
         """畫面卸載時關閉資料庫"""
-        self.quiz_engine.close()
+        self._is_active = False  # 標記為非活躍
+        if not self._db_closed:
+            self.quiz_engine.close()
+            self._db_closed = True
