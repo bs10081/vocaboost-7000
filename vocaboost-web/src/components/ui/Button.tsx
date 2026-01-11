@@ -22,6 +22,7 @@ const buttonVariants = {
 export interface ButtonProps extends React.ComponentPropsWithoutRef<typeof BaseButton> {
   variant?: keyof typeof buttonVariants.variant
   size?: keyof typeof buttonVariants.size
+  children?: React.ReactNode
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
