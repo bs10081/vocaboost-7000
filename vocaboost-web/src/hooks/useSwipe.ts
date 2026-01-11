@@ -3,14 +3,18 @@ import { useEffect, RefObject } from 'react'
 export interface SwipeConfig {
   onSwipeLeft?: () => void // 不會
   onSwipeRight?: () => void // 會
-  onSwipeUp?: () => void // 上一題
+  onSwipeUp?: () => void // 上一題（鍵盤）
+  onSwipeDown?: () => void // 上一題（手機）
   onTap?: () => void // 翻面
+  onSwipeMove?: (deltaX: number, deltaY: number) => void // 即時位置回饋
+  onSwipeEnd?: () => void // 滑動結束（重置位置）
   threshold?: number // 觸發閾值 (預設 50px)
 }
 
 /**
  * 觸控手勢處理 Hook
- * 支援左滑、右滑、上滑和點擊
+ * 支援左滑、右滑、上滑、下滑和點擊
+ * 滑動過程中提供即時位置回饋（Tinder 風格）
  */
 export function useSwipe(
   ref: RefObject<HTMLElement>,
@@ -30,6 +34,17 @@ export function useSwipe(
       startX = e.touches[0].clientX
       startY = e.touches[0].clientY
       startTime = Date.now()
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!config.onSwipeMove) return
+
+      const currentX = e.touches[0].clientX
+      const currentY = e.touches[0].clientY
+      const deltaX = currentX - startX
+      const deltaY = currentY - startY
+
+      config.onSwipeMove(deltaX, deltaY)
     }
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -61,16 +76,24 @@ export function useSwipe(
           if (deltaY < 0) {
             // 上滑
             config.onSwipeUp?.()
+          } else {
+            // 下滑
+            config.onSwipeDown?.()
           }
         }
       }
+
+      // 滑動結束，通知重置
+      config.onSwipeEnd?.()
     }
 
     element.addEventListener('touchstart', handleTouchStart, { passive: true })
+    element.addEventListener('touchmove', handleTouchMove, { passive: true })
     element.addEventListener('touchend', handleTouchEnd)
 
     return () => {
       element.removeEventListener('touchstart', handleTouchStart)
+      element.removeEventListener('touchmove', handleTouchMove)
       element.removeEventListener('touchend', handleTouchEnd)
     }
   }, [ref, config])

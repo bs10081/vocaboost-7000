@@ -89,3 +89,49 @@
 .flip-card-back {
   transform: rotateY(180deg);
 }
+
+/* 滑動退出動畫 */
+@keyframes swipeOutLeft {
+  to {
+    transform: translateX(-150%) rotate(-30deg);
+    opacity: 0;
+  }
+}
+
+@keyframes swipeOutRight {
+  to {
+    transform: translateX(150%) rotate(30deg);
+    opacity: 0;
+  }
+}
+
+@keyframes swipeOutUp {
+  to {
+    transform: translateY(-150%);
+    opacity: 0;
+  }
+}
+
+@keyframes swipeOutDown {
+  to {
+    transform: translateY(150%);
+    opacity: 0;
+  }
+}
+
+.swipe-exit-left {
+  animation: swipeOutLeft 0.3s ease-out forwards;
+}
+
+.swipe-exit-right {
+  animation: swipeOutRight 0.3s ease-out forwards;
+}
+
+.swipe-exit-up {
+  animation: swipeOutUp 0.3s ease-out forwards;
+}
+
+.swipe-exit-down {
+  animation: swipeOutDown 0.3s ease-out forwards;
+}
+

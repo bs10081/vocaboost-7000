@@ -135,6 +135,7 @@ export function StudyPage() {
           onSwipeLeft={answerDontKnow}
           onSwipeRight={answerKnow}
           onSwipeUp={goToPrevious}
+          onSwipeDown={goToPrevious}
         />
       </div>
 
@@ -158,7 +159,7 @@ export function StudyPage() {
 
       {/* 觸控提示（行動裝置） */}
       <div className="flex md:hidden justify-center text-sm text-muted-foreground">
-        <span>左滑不會 | 右滑會 | 點擊翻面</span>
+        <span>← 不會 | 會 → | ↓ 上一題 | 點擊翻面</span>
       </div>
 
       {/* 錯誤統計 */}
