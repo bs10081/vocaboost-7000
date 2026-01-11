@@ -39,6 +39,12 @@ export function useSwipe(
       const deltaY = endY - startY
       const deltaTime = Date.now() - startTime
 
+      // 先檢查是否為點擊（在判斷滑動方向之前）
+      if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
+        config.onTap?.()
+        return
+      }
+
       // 判斷手勢類型
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
         // 水平滑動
@@ -56,9 +62,6 @@ export function useSwipe(
             // 上滑
             config.onSwipeUp?.()
           }
-        } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
-          // 點擊（移動距離小且時間短）
-          config.onTap?.()
         }
       }
     }

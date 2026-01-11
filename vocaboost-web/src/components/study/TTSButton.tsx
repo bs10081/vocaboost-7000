@@ -10,11 +10,11 @@ interface TTSButtonProps {
 export function TTSButton({ text, disabled, onClick }: TTSButtonProps) {
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="icon"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-full"
+      className="rounded-full h-12 w-12"
       title="朗讀 (G)"
     >
       <svg

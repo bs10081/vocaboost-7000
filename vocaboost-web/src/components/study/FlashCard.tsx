@@ -41,7 +41,6 @@ export function FlashCard({
           "h-80 sm:h-96 md:h-[28rem]",
           "transition-transform duration-300 hover:scale-105"
         )}
-        onClick={onFlip}
       >
         <div className={cn("flip-card-inner", isFlipped && "flipped")}>
           {/* 正面：英文 */}
