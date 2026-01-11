@@ -43,8 +43,9 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       words = storage.getDueWords(vocabulary)
     } else if (mode === 'new') {
       words = storage.getNewWords(vocabulary, level)
-      // 限制新單字數量 (例如每次 20 個)
-      words = words.slice(0, 20)
+      // 限制新單字數量（從設定讀取）
+      const settings = storage.getSettings()
+      words = words.slice(0, settings.words_per_session)
     } else if (mode === 'favorite') {
       words = storage.getFavorites(vocabulary)
     }

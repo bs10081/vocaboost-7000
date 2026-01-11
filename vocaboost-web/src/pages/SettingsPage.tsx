@@ -1,11 +1,23 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { Card, CardHeader, CardTitle, CardPanel } from '@/components/ui/Card'
+import { Card, CardHeader, CardTitle, CardDescription, CardPanel } from '@/components/ui/Card'
 import { storage } from '@/lib/storage'
 
 export function SettingsPage() {
   const navigate = useNavigate()
+  const [wordsPerSession, setWordsPerSession] = useState(20)
+
+  // 載入設定
+  useEffect(() => {
+    const settings = storage.getSettings()
+    setWordsPerSession(settings.words_per_session)
+  }, [])
+
+  const handleWordsPerSessionChange = (value: number) => {
+    setWordsPerSession(value)
+    storage.setSettings({ words_per_session: value })
+  }
 
   const handleClearData = () => {
     if (confirm('確定要清除所有學習資料嗎？此操作無法復原。')) {
@@ -26,6 +38,8 @@ export function SettingsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const wordCountOptions = [5, 10, 15, 20, 30, 50]
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
@@ -37,6 +51,36 @@ export function SettingsPage() {
       </div>
 
       <div className="space-y-4">
+        {/* 學習設定 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>學習設定</CardTitle>
+            <CardDescription>自訂學習體驗</CardDescription>
+          </CardHeader>
+          <CardPanel className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-3 block">
+                每次學習單字數量
+              </label>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                {wordCountOptions.map((count) => (
+                  <Button
+                    key={count}
+                    variant={wordsPerSession === count ? 'default' : 'outline'}
+                    onClick={() => handleWordsPerSessionChange(count)}
+                    className="h-12"
+                  >
+                    {count}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                選擇較少單字適合短時間學習，較多單字適合長時間專注學習。
+              </p>
+            </div>
+          </CardPanel>
+        </Card>
+
         {/* 資料管理 */}
         <Card>
           <CardHeader>

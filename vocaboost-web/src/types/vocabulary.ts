@@ -35,6 +35,7 @@ export interface Settings {
   sound_enabled: boolean
   tts_rate: number // 朗讀速度 (0.5 ~ 2.0)
   daily_goal: number // 每日目標 (預設 20)
+  words_per_session: number // 每次學習單字數量 (5-100, 預設 20)
 }
 
 // localStorage Keys
