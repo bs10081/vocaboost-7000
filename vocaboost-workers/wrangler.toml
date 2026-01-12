@@ -1,0 +1,16 @@
+name = "vocaboost-leaderboard"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "vocaboost-leaderboard"
+database_id = "" # Fill this after creating the database with: wrangler d1 create vocaboost-leaderboard
+
+# Environment variables
+[vars]
+CORS_ORIGIN = "https://vocaboost.pages.dev"
+
+# Secrets (set with: wrangler secret put ADMIN_TOKEN)
+# ADMIN_TOKEN = "your-secret-token-here"

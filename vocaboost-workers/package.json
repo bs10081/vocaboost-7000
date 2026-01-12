@@ -1,0 +1,24 @@
+{
+  "name": "vocaboost-leaderboard",
+  "version": "1.0.0",
+  "description": "VocaBoost leaderboard backend on Cloudflare Workers",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create vocaboost-leaderboard",
+    "db:init": "wrangler d1 execute vocaboost-leaderboard --file=src/db/schema.sql",
+    "db:local": "wrangler d1 execute vocaboost-leaderboard --local --file=src/db/schema.sql"
+  },
+  "keywords": ["cloudflare", "workers", "d1", "hono", "leaderboard"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250106.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.87.0"
+  }
+}
