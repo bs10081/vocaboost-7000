@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import type { D1Database } from '@cloudflare/workers-types'
 import leaderboard from './routes/leaderboard'
 import admin from './routes/admin'
+import sync from './routes/sync'
 
 type Bindings = {
   DB: D1Database
@@ -42,6 +43,7 @@ app.get('/', (c) => {
 
 // 註冊路由
 app.route('/api/leaderboard', leaderboard)
+app.route('/api/sync', sync)
 app.route('/admin', admin)
 
 // 404 處理
