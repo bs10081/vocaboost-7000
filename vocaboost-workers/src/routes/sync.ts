@@ -64,6 +64,11 @@ sync.post('/register', async (c) => {
       return c.json({ error: 'INVALID_USERNAME', message: 'Username must be between 2 and 20 characters' }, 400)
     }
 
+    // Check for existing accounts with same username + PIN
+    const existing = await c.env.DB.prepare(`
+      SELECT tag FROM user_sync WHERE username = ? AND pin_hash = ?
+    `).bind(username, pinHash).all()
+
     // Generate unique tag
     const tag = await getUniqueTag(c.env.DB)
 
@@ -74,6 +79,18 @@ sync.post('/register', async (c) => {
     `).bind(username, tag, pinHash, encryptedData, JSON.stringify(encryptionMeta)).run()
 
     const fullId = `${username}#${tag}`
+
+    // Return with warning if duplicate credentials exist
+    if (existing.results && existing.results.length > 0) {
+      return c.json({
+        success: true,
+        tag,
+        fullId,
+        dataVersion: 1,
+        warning: 'DUPLICATE_CREDENTIALS',
+        warningMessage: '已有其他帳號使用相同名稱和 PIN，登入時需要輸入完整 ID',
+      }, 201)
+    }
 
     return c.json({
       success: true,
@@ -123,6 +140,58 @@ sync.post('/login', async (c) => {
     })
   } catch (error) {
     console.error('Login error:', error)
+    return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to login' }, 500)
+  }
+})
+
+/**
+ * POST /api/sync/login-simple
+ * Simplified login with just username + PIN (no tag required)
+ */
+sync.post('/login-simple', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { username, pinHash } = body
+
+    if (!username || !pinHash) {
+      return c.json({ error: 'MISSING_FIELDS', message: 'Username and pinHash are required' }, 400)
+    }
+
+    // Query all records matching username + PIN
+    const records = await c.env.DB.prepare(`
+      SELECT tag, data_version, updated_at
+      FROM user_sync
+      WHERE username = ? AND pin_hash = ?
+    `).bind(username, pinHash).all()
+
+    if (!records.results || records.results.length === 0) {
+      return c.json({ error: 'USER_NOT_FOUND', message: '帳號不存在或 PIN 碼錯誤' }, 404)
+    }
+
+    if (records.results.length === 1) {
+      // Unique match - auto-login successful
+      const record = records.results[0]
+      return c.json({
+        success: true,
+        tag: record.tag,
+        fullId: `${username}#${record.tag}`,
+        dataVersion: record.data_version,
+        updatedAt: record.updated_at,
+      })
+    }
+
+    // Multiple matches - return list for user to choose
+    return c.json({
+      error: 'MULTIPLE_ACCOUNTS',
+      message: '有多個帳號使用相同的名稱和 PIN，請選擇您的帳號',
+      accounts: records.results.map(r => ({
+        tag: r.tag,
+        fullId: `${username}#${r.tag}`,
+        updatedAt: r.updated_at,
+      }))
+    }, 409)
+  } catch (error) {
+    console.error('Login-simple error:', error)
     return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to login' }, 500)
   }
 })
@@ -224,6 +293,79 @@ sync.post('/download', async (c) => {
   } catch (error) {
     console.error('Download error:', error)
     return c.json({ error: 'INTERNAL_ERROR' }, 500)
+  }
+})
+
+/**
+ * POST /api/sync/download-simple
+ * Simplified download with just username + PIN (no tag required)
+ */
+sync.post('/download-simple', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { username, pinHash, tag: selectedTag } = body
+
+    if (!username || !pinHash) {
+      return c.json({ error: 'MISSING_FIELDS', message: 'Username and pinHash are required' }, 400)
+    }
+
+    // If tag is provided (user selected from multiple accounts), use it directly
+    if (selectedTag) {
+      const record = await c.env.DB.prepare(`
+        SELECT encrypted_data, encryption_meta, data_version, updated_at, pin_hash
+        FROM user_sync
+        WHERE username = ? AND tag = ? AND pin_hash = ?
+      `).bind(username, selectedTag, pinHash).first()
+
+      if (!record) {
+        return c.json({ error: 'USER_NOT_FOUND' }, 404)
+      }
+
+      return c.json({
+        tag: selectedTag,
+        encryptedData: record.encrypted_data,
+        encryptionMeta: JSON.parse(record.encryption_meta as string),
+        dataVersion: record.data_version,
+        updatedAt: record.updated_at,
+      })
+    }
+
+    // Query all records matching username + PIN
+    const records = await c.env.DB.prepare(`
+      SELECT tag, encrypted_data, encryption_meta, data_version, updated_at
+      FROM user_sync
+      WHERE username = ? AND pin_hash = ?
+    `).bind(username, pinHash).all()
+
+    if (!records.results || records.results.length === 0) {
+      return c.json({ error: 'USER_NOT_FOUND', message: '帳號不存在或 PIN 碼錯誤' }, 404)
+    }
+
+    if (records.results.length === 1) {
+      // Unique match - return data directly
+      const record = records.results[0]
+      return c.json({
+        tag: record.tag,
+        encryptedData: record.encrypted_data,
+        encryptionMeta: JSON.parse(record.encryption_meta as string),
+        dataVersion: record.data_version,
+        updatedAt: record.updated_at,
+      })
+    }
+
+    // Multiple matches - return list for user to choose
+    return c.json({
+      error: 'MULTIPLE_ACCOUNTS',
+      message: '有多個帳號使用相同的名稱和 PIN，請選擇您的帳號',
+      accounts: records.results.map(r => ({
+        tag: r.tag,
+        fullId: `${username}#${r.tag}`,
+        updatedAt: r.updated_at,
+      }))
+    }, 409)
+  } catch (error) {
+    console.error('Download-simple error:', error)
+    return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to download data' }, 500)
   }
 })
 

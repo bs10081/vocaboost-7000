@@ -82,7 +82,7 @@ export function useSync() {
    * Register a new sync account
    */
   const register = useCallback(
-    async (username: string, pin: string): Promise<SyncAccount> => {
+    async (username: string, pin: string): Promise<SyncAccount & { warning?: string; warningMessage?: string }> => {
       setIsSyncing(true)
       try {
         // Prepare data to sync
@@ -98,13 +98,19 @@ export function useSync() {
         localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, response.dataVersion.toString())
         localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
 
-        const newAccount: SyncAccount = {
+        const newAccount = {
           username,
           tag: response.tag,
           fullId: response.fullId,
+          warning: response.warning,
+          warningMessage: response.warningMessage,
         }
 
-        setAccount(newAccount)
+        setAccount({
+          username,
+          tag: response.tag,
+          fullId: response.fullId,
+        })
         setIsEnabled(true)
         setDataVersion(response.dataVersion)
         setLastSynced(new Date())
@@ -176,36 +182,58 @@ export function useSync() {
 
   /**
    * Restore data from server
+   * @param fullIdOrUsername - Full ID (username#TAG) or just username for simplified flow
+   * @param pin - PIN code
+   * @param useSimplified - If true, use simplified API (no TAG required)
    */
   const restoreData = useCallback(
-    async (fullId: string, pin: string): Promise<void> => {
+    async (fullIdOrUsername: string, pin: string, useSimplified: boolean = false): Promise<void> => {
       setIsSyncing(true)
       try {
-        const parsed = parseFullId(fullId)
-        if (!parsed) {
-          throw new Error('無效的 ID 格式')
-        }
+        let username: string
+        let tag: string
+        let data: SyncData & { _tag?: string }
 
-        // Download and decrypt data
-        const data = await syncApi.download(parsed.username, parsed.tag, pin)
+        if (useSimplified) {
+          // Simplified flow - username only
+          username = fullIdOrUsername
+          data = await syncApi.downloadSimple(username, pin) as SyncData & { _tag?: string }
+
+          // Get tag from the result
+          if (!data._tag) {
+            throw new Error('Failed to get account tag from server')
+          }
+          tag = data._tag
+        } else {
+          // Full flow - require username#TAG
+          const parsed = parseFullId(fullIdOrUsername)
+          if (!parsed) {
+            throw new Error('無效的 ID 格式')
+          }
+          username = parsed.username
+          tag = parsed.tag
+
+          // Download and decrypt data
+          data = await syncApi.download(username, tag, pin)
+        }
 
         // Apply to localStorage
         applySyncData(data)
 
         // Save sync account
-        localStorage.setItem(STORAGE_KEYS.SYNC_USERNAME, parsed.username)
-        localStorage.setItem(STORAGE_KEYS.SYNC_TAG, parsed.tag)
+        localStorage.setItem(STORAGE_KEYS.SYNC_USERNAME, username)
+        localStorage.setItem(STORAGE_KEYS.SYNC_TAG, tag)
         localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, 'true')
         localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
 
         // Get version from server
-        const loginResponse = await syncApi.login(parsed.username, parsed.tag, pin)
+        const loginResponse = await syncApi.login(username, tag, pin)
         localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, loginResponse.dataVersion.toString())
 
         setAccount({
-          username: parsed.username,
-          tag: parsed.tag,
-          fullId,
+          username,
+          tag,
+          fullId: formatFullId(username, tag),
         })
         setIsEnabled(true)
         setDataVersion(loginResponse.dataVersion)

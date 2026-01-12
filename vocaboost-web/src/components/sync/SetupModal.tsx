@@ -15,7 +15,11 @@ export function SetupModal({ isOpen, onClose }: SetupModalProps) {
   const [pin, setPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [createdAccount, setCreatedAccount] = useState<{ fullId: string } | null>(null)
+  const [createdAccount, setCreatedAccount] = useState<{
+    fullId: string
+    warning?: string
+    warningMessage?: string
+  } | null>(null)
 
   const handleClose = () => {
     setStep('input')
@@ -170,6 +174,16 @@ export function SetupModal({ isOpen, onClose }: SetupModalProps) {
                 <div className="text-sm text-muted-foreground mb-2">您的完整 ID</div>
                 <div className="font-mono text-2xl font-bold break-all">{createdAccount?.fullId}</div>
               </div>
+
+              {createdAccount?.warning === 'DUPLICATE_CREDENTIALS' && (
+                <div className="rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-3 text-sm text-left">
+                  <div className="font-semibold mb-1">⚠️ 注意</div>
+                  <div>{createdAccount.warningMessage}</div>
+                  <div className="mt-2 text-xs">
+                    登入時需要輸入完整 ID（包含 #{createdAccount.fullId.split('#')[1]} 部分）
+                  </div>
+                </div>
+              )}
 
               <p className="text-sm text-muted-foreground">
                 請記住此 ID 和 PIN 碼，以便在其他裝置還原資料
