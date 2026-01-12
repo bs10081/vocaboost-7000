@@ -53,4 +53,5 @@ export const STORAGE_KEYS = {
   SYNC_ENABLED: 'vocaboost_sync_enabled', // 是否啟用同步
   SYNC_VERSION: 'vocaboost_sync_version', // 本地資料版本號
   SYNC_LAST_SYNCED: 'vocaboost_sync_last_synced', // 最後同步時間 (ISO string)
+  SYNC_PIN: 'vocaboost_sync_pin', // 同步 PIN 碼（明文儲存，用於自動同步和加密）
 } as const

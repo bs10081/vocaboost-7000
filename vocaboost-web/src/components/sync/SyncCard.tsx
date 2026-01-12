@@ -7,39 +7,25 @@ import { SetupModal } from './SetupModal'
 import { RestoreModal } from './RestoreModal'
 
 export function SyncCard() {
-  const { account, isEnabled, lastSynced, isSyncing, syncNow, disconnect } = useSync()
+  const { account, isEnabled, lastSynced, isSyncing, autoSync, disconnect, hasSavedPin } = useSync()
   const [showSetupModal, setShowSetupModal] = useState(false)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
-  const [showPinInput, setShowPinInput] = useState(false)
-  const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const handleSync = async () => {
-    if (!pin) {
-      setError('請輸入 PIN 碼')
-      return
-    }
-
+  const handleAutoSync = async () => {
     setError(null)
     setSuccess(null)
 
     try {
-      await syncNow(pin)
+      await autoSync()
       setSuccess('同步成功！')
-      setPin('')
-      setShowPinInput(false)
 
       // 3 秒後自動清除成功消息
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       const message = err instanceof Error ? err.message : '同步失敗'
-      // 改進錯誤訊息
-      if (message === 'INVALID_PIN' || message.includes('Invalid PIN')) {
-        setError('PIN 碼錯誤，請確認輸入的是註冊時設定的 6 位數字')
-      } else {
-        setError(message)
-      }
+      setError(message)
     }
   }
 
@@ -111,47 +97,15 @@ export function SyncCard() {
                 </div>
               )}
 
-              {showPinInput ? (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">輸入 PIN 碼以同步</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={pin}
-                      onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                      placeholder="6 位數字"
-                      className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400"
-                      autoFocus
-                    />
-                    <Button onClick={handleSync} disabled={isSyncing || pin.length !== 6}>
-                      {isSyncing ? '同步中...' : '確認'}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowPinInput(false)
-                        setPin('')
-                        setError(null)
-                      }}
-                      variant="outline"
-                    >
-                      取消
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+              {hasSavedPin ? (
+                // 有儲存的 PIN，可以自動同步
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => {
-                      setShowPinInput(true)
-                      setError(null)
-                      setSuccess(null)
-                    }}
+                    onClick={handleAutoSync}
                     disabled={isSyncing}
                     className="flex-1"
                   >
-                    立即同步
+                    {isSyncing ? '同步中...' : '立即同步'}
                   </Button>
                   <Button onClick={() => setShowRestoreModal(true)} variant="outline" className="flex-1">
                     還原資料
@@ -159,6 +113,22 @@ export function SyncCard() {
                   <Button onClick={disconnect} variant="outline">
                     登出
                   </Button>
+                </div>
+              ) : (
+                // 沒有儲存的 PIN，提示重新登入
+                <div className="space-y-4">
+                  <div className="rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-3 text-sm">
+                    <div className="font-semibold mb-1">⚠️ 無法自動同步</div>
+                    <div>請重新登入以啟用自動同步功能</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => setShowRestoreModal(true)} className="flex-1">
+                      重新登入
+                    </Button>
+                    <Button onClick={disconnect} variant="outline">
+                      登出
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

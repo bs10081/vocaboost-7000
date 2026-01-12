@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { syncApi } from '@/services/syncApi'
 import { storage } from '@/lib/storage'
 import { formatFullId, parseFullId, type SyncData } from '@/lib/crypto'
+import { mergeSyncData } from '@/lib/syncMerge'
 import { STORAGE_KEYS } from '@/types/vocabulary'
 
 export interface SyncAccount {
@@ -11,6 +12,19 @@ export interface SyncAccount {
 }
 
 export function useSync() {
+  // PIN management helpers
+  const savePin = useCallback((pin: string) => {
+    localStorage.setItem(STORAGE_KEYS.SYNC_PIN, pin)
+  }, [])
+
+  const getSavedPin = useCallback((): string | null => {
+    return localStorage.getItem(STORAGE_KEYS.SYNC_PIN)
+  }, [])
+
+  const hasSavedPin = useCallback((): boolean => {
+    return localStorage.getItem(STORAGE_KEYS.SYNC_PIN) !== null
+  }, [])
+
   // Read sync state from localStorage
   const getSyncAccount = useCallback((): SyncAccount | null => {
     const username = localStorage.getItem(STORAGE_KEYS.SYNC_USERNAME)
@@ -97,6 +111,9 @@ export function useSync() {
         localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, 'true')
         localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, response.dataVersion.toString())
         localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
+
+        // Save PIN for auto-sync
+        savePin(pin)
 
         const newAccount = {
           username,
@@ -226,6 +243,9 @@ export function useSync() {
         localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, 'true')
         localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
 
+        // Save PIN for auto-sync
+        savePin(pin)
+
         // Get version from server
         const loginResponse = await syncApi.login(username, tag, pin)
         localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, loginResponse.dataVersion.toString())
@@ -254,12 +274,99 @@ export function useSync() {
     localStorage.removeItem(STORAGE_KEYS.SYNC_ENABLED)
     localStorage.removeItem(STORAGE_KEYS.SYNC_VERSION)
     localStorage.removeItem(STORAGE_KEYS.SYNC_LAST_SYNCED)
+    localStorage.removeItem(STORAGE_KEYS.SYNC_PIN) // Clear saved PIN
 
     setAccount(null)
     setIsEnabled(false)
     setDataVersion(0)
     setLastSynced(null)
   }, [])
+
+  /**
+   * Auto-sync using saved PIN (for automatic syncing after study)
+   */
+  const autoSync = useCallback(
+    async (): Promise<void> => {
+      if (!account || !isEnabled) return
+
+      const pin = getSavedPin()
+      if (!pin) return // No saved PIN, skip auto-sync
+
+      setIsSyncing(true)
+      try {
+        await syncWithConflictResolution(pin)
+      } catch (err) {
+        console.error('Auto sync failed:', err)
+        // Don't throw error to avoid interrupting user experience
+      } finally {
+        setIsSyncing(false)
+      }
+    },
+    [account, isEnabled, getSavedPin]
+  )
+
+  /**
+   * Sync with automatic conflict resolution
+   */
+  const syncWithConflictResolution = useCallback(
+    async (pin: string): Promise<void> => {
+      if (!account) return
+
+      try {
+        // Try normal sync first
+        const data = prepareSyncData()
+        const response = await syncApi.upload(account.username, account.tag, pin, data, dataVersion)
+
+        // Update sync metadata
+        localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, response.dataVersion.toString())
+        localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
+
+        setDataVersion(response.dataVersion)
+        setLastSynced(new Date())
+      } catch (err) {
+        const error = err as Error
+        if (error.message.includes('版本衝突')) {
+          // Version conflict detected - pull, merge, and push
+          await pullMergeAndPush(pin)
+        } else {
+          throw err
+        }
+      }
+    },
+    [account, dataVersion, prepareSyncData]
+  )
+
+  /**
+   * Pull-Merge-Push strategy for conflict resolution
+   */
+  const pullMergeAndPush = useCallback(
+    async (pin: string): Promise<void> => {
+      if (!account) return
+
+      // 1. Download server data
+      const serverData = await syncApi.download(account.username, account.tag, pin)
+
+      // 2. Get local data
+      const localData = prepareSyncData()
+
+      // 3. Merge
+      const mergedData = mergeSyncData(localData, serverData)
+
+      // 4. Apply merged data to localStorage
+      applySyncData(mergedData)
+
+      // 5. Re-upload (without version check to force update)
+      const response = await syncApi.upload(account.username, account.tag, pin, mergedData)
+
+      // 6. Update metadata
+      localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, response.dataVersion.toString())
+      localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
+
+      setDataVersion(response.dataVersion)
+      setLastSynced(new Date())
+    },
+    [account, prepareSyncData, applySyncData]
+  )
 
   /**
    * Delete account (remove from server)
@@ -291,10 +398,14 @@ export function useSync() {
     dataVersion,
     isSyncing,
 
+    // PIN management
+    hasSavedPin: hasSavedPin(),
+
     // Actions
     register,
     login,
     syncNow,
+    autoSync,
     restoreData,
     disconnect,
     deleteAccount,
