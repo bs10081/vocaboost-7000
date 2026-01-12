@@ -44,4 +44,13 @@ export const STORAGE_KEYS = {
   SESSIONS: 'vocaboost_sessions',
   SETTINGS: 'vocaboost_settings',
   VOCABULARY_VERSION: 'vocaboost_vocab_version',
+  USER_ID: 'vocaboost_user_id',
+  USERNAME: 'vocaboost_username',
+
+  // Sync相關
+  SYNC_USERNAME: 'vocaboost_sync_username', // 同步帳號使用者名稱
+  SYNC_TAG: 'vocaboost_sync_tag', // 同步帳號識別碼 (A1B2C3)
+  SYNC_ENABLED: 'vocaboost_sync_enabled', // 是否啟用同步
+  SYNC_VERSION: 'vocaboost_sync_version', // 本地資料版本號
+  SYNC_LAST_SYNCED: 'vocaboost_sync_last_synced', // 最後同步時間 (ISO string)
 } as const

@@ -3,6 +3,7 @@ import { HomePage } from '@/pages/HomePage'
 import { StudyPage } from '@/pages/StudyPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { LeaderboardPage } from '@/pages/LeaderboardPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/study/:mode/:level" element={<StudyPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
       </Routes>
     </BrowserRouter>
   )
