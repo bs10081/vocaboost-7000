@@ -10,12 +10,14 @@ import { useVocabulary } from '@/hooks/useVocabulary'
 import { useStudyStore } from '@/stores/studyStore'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useTTS } from '@/hooks/useTTS'
+import { useSync } from '@/hooks/useSync'
 
 export function StudyPage() {
   const navigate = useNavigate()
   const { mode, level } = useParams<{ mode: string; level?: string }>()
   const { vocabulary, loading } = useVocabulary()
   const { speak } = useTTS()
+  const { autoSync, isEnabled: syncEnabled } = useSync()
 
   const {
     words,
@@ -38,6 +40,14 @@ export function StudyPage() {
     const levelNum = level ? parseInt(level) : undefined
     startStudy(mode as any, vocabulary, levelNum)
   }, [mode, level, vocabulary, loading])
+
+  // 自動同步：完成學習後觸發
+  useEffect(() => {
+    if (isFinished() && syncEnabled) {
+      console.log('Study completed, triggering auto-sync...')
+      autoSync()
+    }
+  }, [currentIndex, words.length, syncEnabled, autoSync, isFinished])
 
   // 鍵盤操控
   useKeyboard({
