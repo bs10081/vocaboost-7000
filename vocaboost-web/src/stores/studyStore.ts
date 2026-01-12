@@ -1,8 +1,37 @@
 import { create } from 'zustand'
 import type { VocabularyWord } from '@/types/vocabulary'
 import { storage } from '@/lib/storage'
+import { leaderboardApi } from '@/services/leaderboardApi'
 
 export type StudyMode = 'review' | 'new' | 'favorite'
+
+/**
+ * 自動同步分數到排行榜（靜默失敗）
+ */
+const syncScoreToLeaderboard = async () => {
+  try {
+    const username = storage.getUsername()
+    if (!username) return // 沒有設定暱稱，不同步
+
+    const userId = storage.getUserId()
+    const score = storage.calculateTotalScore()
+    const wordsLearned = storage.getAllProgress().size
+    const streakDays = storage.getStreakDays()
+
+    await leaderboardApi.submitScore({
+      userId,
+      username,
+      score,
+      wordsLearned,
+      streakDays,
+    })
+
+    console.log('Score synced to leaderboard')
+  } catch (error) {
+    // 靜默失敗，不影響用戶體驗
+    console.error('Failed to sync score:', error)
+  }
+}
 
 interface StudyState {
   // 當前學習狀態
@@ -80,12 +109,19 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     // 記錄答案
     storage.recordAnswer(word.id, true, isNew)
 
+    const nextIndex = currentIndex + 1
+
     // 移動到下一題
     set({
-      currentIndex: currentIndex + 1,
+      currentIndex: nextIndex,
       isFlipped: false,
       history: [...history, currentIndex],
     })
+
+    // 如果完成學習，自動同步分數
+    if (nextIndex >= words.length) {
+      syncScoreToLeaderboard()
+    }
   },
 
   // 回答「不會」
@@ -104,13 +140,20 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       wrongWords.push(word)
     }
 
+    const nextIndex = currentIndex + 1
+
     // 移動到下一題
     set({
-      currentIndex: currentIndex + 1,
+      currentIndex: nextIndex,
       isFlipped: false,
       history: [...history, currentIndex],
       wrongWords,
     })
+
+    // 如果完成學習，自動同步分數
+    if (nextIndex >= words.length) {
+      syncScoreToLeaderboard()
+    }
   },
 
   // 上一題

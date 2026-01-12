@@ -310,6 +310,52 @@ class StorageManager {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated))
   }
 
+  // ============ 使用者管理 ============
+
+  /**
+   * 取得或生成使用者 ID (UUID v4)
+   */
+  getUserId(): string {
+    let userId = localStorage.getItem(STORAGE_KEYS.USER_ID)
+
+    if (!userId) {
+      // 生成 UUID v4
+      userId = crypto.randomUUID()
+      localStorage.setItem(STORAGE_KEYS.USER_ID, userId)
+    }
+
+    return userId
+  }
+
+  /**
+   * 取得使用者暱稱
+   */
+  getUsername(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.USERNAME)
+  }
+
+  /**
+   * 設定使用者暱稱
+   */
+  setUsername(username: string): void {
+    localStorage.setItem(STORAGE_KEYS.USERNAME, username)
+  }
+
+  /**
+   * 計算總分數（基於學習進度）
+   */
+  calculateTotalScore(): number {
+    const allProgress = this.getAllProgress()
+    let totalScore = 0
+
+    // 計算所有單字的總答對次數
+    allProgress.forEach(progress => {
+      totalScore += progress.correct_count
+    })
+
+    return totalScore
+  }
+
   // ============ 資料管理 ============
 
   /**

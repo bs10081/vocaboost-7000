@@ -99,3 +99,152 @@ python3 src/quiz_engine.py       # 測試測驗引擎
 單字資料來自「教育部7000單字(Level1-7).pdf」，使用 pdfplumber 解析提取。PDF 格式預期：
 - 每行包含：單字、音標、詞性、中文翻譯、級別
 - 使用 `pdf_parser.py` 的正規表達式模式匹配
+
+---
+
+## VocaBoost Web (PWA)
+
+React 19 前端 PWA 應用，提供現代化的學習體驗。
+
+### 技術棧
+- **React 19** + TypeScript + Vite
+- **Tailwind CSS** + shadcn/ui - 現代化 UI 框架
+- **Zustand** - 輕量級狀態管理
+- **localStorage** - 本地數據持久化
+- **PWA** - 漸進式 Web 應用，支援離線使用
+
+### 專案結構
+```
+vocaboost-web/
+├── src/
+│   ├── components/    # UI 組件（Card, Button, Badge 等）
+│   ├── hooks/         # 自定義 Hooks (useVocabulary, useKeyboard, useTTS)
+│   ├── lib/           # 工具函數 (storage, sm2, utils)
+│   ├── pages/         # 頁面組件 (HomePage, StudyPage, StatsPage, LeaderboardPage)
+│   ├── stores/        # Zustand stores (studyStore)
+│   ├── services/      # API 服務層 (leaderboardApi)
+│   └── types/         # TypeScript 類型定義
+├── public/            # 靜態資源（vocabulary.json, PWA icons）
+└── index.html
+```
+
+### 核心功能
+- **SM-2 演算法**: 與 Python 版本相同的間隔重複學習演算法
+- **多種學習模式**:
+  - 複習模式 (review): 復習到期單字
+  - 新單字模式 (new): 學習未學過的單字
+  - 收藏模式 (favorite): 專注練習收藏的單字
+- **級別篩選**: 可指定學習 Level 1-7 任一級別
+- **翻牌學習**: 點擊翻面，會/不會按鈕判斷
+- **統計追蹤**: 連續天數、學習進度、答對率
+- **TTS 語音**: 單字發音
+
+### 常用指令
+```bash
+cd vocaboost-web
+npm install           # 安裝依賴
+npm run dev           # 開發模式 (localhost:5173)
+npm run build         # 生產構建
+npm run preview       # 預覽構建結果
+```
+
+### 部署
+- **平台**: Cloudflare Pages
+- **生產 URL**: https://vocaboost.pages.dev
+- **自動部署**: Git push 自動觸發構建
+
+### 資料儲存設計
+使用 localStorage 儲存學習進度：
+- `vocaboost_progress`: 每個單字的學習進度（ease_factor, interval_days, next_review）
+- `vocaboost_sessions`: 每日學習統計
+- `vocaboost_settings`: 用戶設定
+- `vocaboost_user_id`: 用戶 UUID（用於排行榜）
+- `vocaboost_username`: 用戶暱稱（用於排行榜）
+
+---
+
+## VocaBoost Workers (排行榜後端)
+
+Cloudflare Workers 無伺服器後端，提供全球排行榜功能。
+
+### 技術棧
+- **Cloudflare Workers** - 邊緣運算，全球低延遲
+- **D1 Database** - Cloudflare 的 SQLite 資料庫
+- **Hono** - 輕量級 Web 框架
+- **Bearer Token 認證** - 管理員端點保護
+
+### 專案結構
+```
+vocaboost-workers/
+├── src/
+│   ├── index.ts          # Hono 主入口，CORS 和路由註冊
+│   ├── routes/
+│   │   ├── leaderboard.ts # 排行榜 API（公開）
+│   │   └── admin.ts       # 管理員 API（需認證）
+│   └── db/
+│       └── schema.sql     # D1 資料庫結構
+├── wrangler.toml          # Workers 配置
+├── package.json
+└── tsconfig.json
+```
+
+### API 端點
+
+#### 公開端點
+- `GET /api/leaderboard?page=1&limit=20` - 獲取排行榜列表（分頁）
+- `GET /api/leaderboard/:userId` - 獲取特定使用者排名
+- `POST /api/leaderboard/score` - 提交/更新分數
+
+#### 管理員端點（需 Bearer Token）
+- `GET /admin/users` - 列出所有使用者
+- `DELETE /admin/users/:userId` - 刪除使用者（作弊者）
+
+### 常用指令
+```bash
+cd vocaboost-workers
+npm install                          # 安裝依賴
+npm run dev                          # 本地開發 (localhost:8787)
+npm run deploy                       # 部署到 Cloudflare
+npx wrangler d1 execute ...          # 執行資料庫指令
+npx wrangler secret put ADMIN_TOKEN  # 設定管理員 token
+```
+
+### 部署資訊
+- **Worker URL**: https://vocaboost-leaderboard.bs10081.workers.dev
+- **D1 Database ID**: f0f810b4-381a-41ed-9f83-293082727d0a
+- **Region**: APAC (Tokyo NRT)
+
+### 資料庫結構
+```sql
+CREATE TABLE leaderboard (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL UNIQUE,        -- UUID
+  username TEXT NOT NULL,              -- 使用者暱稱
+  score INTEGER NOT NULL DEFAULT 0,    -- 總分數
+  words_learned INTEGER NOT NULL DEFAULT 0,  -- 已學單字數
+  streak_days INTEGER NOT NULL DEFAULT 0,    -- 連續天數
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+```
+
+### 排行規則
+- 主要排序：`score` (總分數) 降序
+- 次要排序：`words_learned` (已學單字數) 降序
+
+---
+
+## Claude Code Skills
+
+專案提供三個自定義 Skills（在 `.claude/skills/` 目錄）：
+
+### /deploy-workers
+部署 Workers 後端到 Cloudflare。
+
+### /deploy-web
+構建並提交前端，觸發 Cloudflare Pages 自動部署。
+
+### /dev
+啟動本地開發環境（前端 + Workers）。
+
+使用方式：在 Claude Code 中輸入 `/deploy-workers` 即可執行相應指令。

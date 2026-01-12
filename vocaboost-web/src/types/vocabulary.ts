@@ -44,4 +44,6 @@ export const STORAGE_KEYS = {
   SESSIONS: 'vocaboost_sessions',
   SETTINGS: 'vocaboost_settings',
   VOCABULARY_VERSION: 'vocaboost_vocab_version',
+  USER_ID: 'vocaboost_user_id',
+  USERNAME: 'vocaboost_username',
 } as const

@@ -129,9 +129,12 @@ export function HomePage() {
         </Card>
 
         {/* 其他功能 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Button variant="secondary" onClick={handleFavorites} className="h-16">
             收藏難詞
+          </Button>
+          <Button variant="secondary" onClick={() => navigate('/leaderboard')} className="h-16">
+            排行榜
           </Button>
           <Button variant="secondary" onClick={() => navigate('/stats')} className="h-16">
             學習統計
