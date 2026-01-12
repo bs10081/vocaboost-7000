@@ -29,6 +29,9 @@ export function SyncCard() {
       setSuccess('同步成功！')
       setPin('')
       setShowPinInput(false)
+
+      // 3 秒後自動清除成功消息
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : '同步失敗')
     }
@@ -117,7 +120,7 @@ export function SyncCard() {
                       autoFocus
                     />
                     <Button onClick={handleSync} disabled={isSyncing || pin.length !== 6}>
-                      確認
+                      {isSyncing ? '同步中...' : '確認'}
                     </Button>
                     <Button
                       onClick={() => {
@@ -134,7 +137,11 @@ export function SyncCard() {
               ) : (
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => setShowPinInput(true)}
+                    onClick={() => {
+                      setShowPinInput(true)
+                      setError(null)
+                      setSuccess(null)
+                    }}
                     disabled={isSyncing}
                     className="flex-1"
                   >
