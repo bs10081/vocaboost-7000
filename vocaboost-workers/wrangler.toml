@@ -6,7 +6,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "vocaboost-leaderboard"
-database_id = "" # Fill this after creating the database with: wrangler d1 create vocaboost-leaderboard
+database_id = "f0f810b4-381a-41ed-9f83-293082727d0a"
 
 # Environment variables
 [vars]
