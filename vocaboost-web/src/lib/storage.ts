@@ -262,6 +262,13 @@ class StorageManager {
     }
   }
 
+  /**
+   * 取得所有學習記錄（公開方法供 sync 使用）
+   */
+  getAllSessions(): StudySession[] {
+    return this._getAllSessions()
+  }
+
   private _saveAllSessions(sessions: StudySession[]): void {
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions))
   }

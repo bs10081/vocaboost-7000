@@ -55,8 +55,11 @@ export function RestoreModal({ isOpen, onClose }: RestoreModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-background rounded-lg max-w-md w-full p-6 space-y-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
         {!success ? (
           <>
             <div>
@@ -74,7 +77,7 @@ export function RestoreModal({ isOpen, onClose }: RestoreModalProps) {
                   value={fullId}
                   onChange={(e) => setFullId(e.target.value.trim())}
                   placeholder="VocabMaster#A1B2C3"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono text-gray-900 dark:text-white placeholder-gray-400"
                   autoFocus
                   disabled={isSyncing}
                 />
@@ -92,7 +95,7 @@ export function RestoreModal({ isOpen, onClose }: RestoreModalProps) {
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                   placeholder="••••••"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-center text-2xl tracking-widest"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono text-center text-2xl tracking-widest text-gray-900 dark:text-white"
                   disabled={isSyncing}
                 />
               </div>
