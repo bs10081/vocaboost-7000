@@ -15,9 +15,16 @@ const app = new Hono<{ Bindings: Bindings }>()
 // CORS 中間件
 app.use('*', async (c, next) => {
   const corsOrigin = c.env.CORS_ORIGIN || 'https://vocaboost.pages.dev'
+  const requestOrigin = c.req.header('Origin') || ''
+
+  // 允許配置的來源 + 所有 localhost
+  const allowedOrigins = [corsOrigin]
+  if (requestOrigin.startsWith('http://localhost:') || requestOrigin.startsWith('http://127.0.0.1:')) {
+    allowedOrigins.push(requestOrigin)
+  }
 
   return cors({
-    origin: [corsOrigin, 'http://localhost:5173', 'http://localhost:4173'],
+    origin: allowedOrigins,
     allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     maxAge: 600,
