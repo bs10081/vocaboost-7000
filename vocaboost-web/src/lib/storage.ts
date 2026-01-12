@@ -363,6 +363,27 @@ class StorageManager {
     return totalScore
   }
 
+  /**
+   * 取得排行榜用的使用者 ID
+   * 如果已啟用同步，使用 username#tag 格式
+   * 否則使用 localStorage 的 UUID
+   */
+  getLeaderboardUserId(): string {
+    const syncEnabled = localStorage.getItem(STORAGE_KEYS.SYNC_ENABLED) === 'true'
+
+    if (syncEnabled) {
+      const syncUsername = localStorage.getItem(STORAGE_KEYS.SYNC_USERNAME)
+      const syncTag = localStorage.getItem(STORAGE_KEYS.SYNC_TAG)
+
+      if (syncUsername && syncTag) {
+        return `${syncUsername}#${syncTag}`
+      }
+    }
+
+    // 回退到 localStorage UUID
+    return this.getUserId()
+  }
+
   // ============ 資料管理 ============
 
   /**
