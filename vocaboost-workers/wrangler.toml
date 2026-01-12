@@ -10,7 +10,7 @@ database_id = "f0f810b4-381a-41ed-9f83-293082727d0a"
 
 # Environment variables
 [vars]
-CORS_ORIGIN = "https://vocaboost.pages.dev"
+CORS_ORIGIN = "https://vocaboost-7000.pages.dev"
 
 # Secrets (set with: wrangler secret put ADMIN_TOKEN)
 # ADMIN_TOKEN = "your-secret-token-here"

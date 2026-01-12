@@ -20,12 +20,18 @@ export function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const userId = storage.getUserId()
+  // 使用排行榜專用的 userId（已啟用同步則為 username#tag，否則為 UUID）
+  const userId = storage.getLeaderboardUserId()
 
   // 檢查是否有使用者暱稱
   useEffect(() => {
+    // 優先使用同步帳號的 username
+    const syncUsername = localStorage.getItem('vocaboost_sync_username')
     const storedUsername = storage.getUsername()
-    if (!storedUsername) {
+
+    if (syncUsername) {
+      setUsername(syncUsername)
+    } else if (!storedUsername) {
       setShowUsernameDialog(true)
     } else {
       setUsername(storedUsername)
