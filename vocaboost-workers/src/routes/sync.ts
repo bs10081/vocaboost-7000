@@ -403,7 +403,7 @@ sync.get('/check/:tag', async (c) => {
 
 /**
  * DELETE /api/sync/delete
- * Delete sync account
+ * Delete sync account and associated leaderboard entry
  */
 sync.delete('/delete', async (c) => {
   try {
@@ -428,14 +428,20 @@ sync.delete('/delete', async (c) => {
       return c.json({ error: 'INVALID_PIN' }, 401)
     }
 
-    // Delete record
+    // Delete sync record
     await c.env.DB.prepare(`
       DELETE FROM user_sync WHERE username = ? AND tag = ?
     `).bind(username, tag).run()
 
+    // Delete leaderboard entry (user_id format: username#tag)
+    const fullId = `${username}#${tag}`
+    await c.env.DB.prepare(`
+      DELETE FROM leaderboard WHERE user_id = ?
+    `).bind(fullId).run()
+
     return c.json({
       success: true,
-      message: 'Sync account deleted',
+      message: 'Sync account and leaderboard entry deleted',
     })
   } catch (error) {
     console.error('Delete error:', error)
