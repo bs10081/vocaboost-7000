@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardPanel } from '@/components/ui/Card'
+import { SyncCard } from '@/components/sync/SyncCard'
 import { storage } from '@/lib/storage'
 
 export function SettingsPage() {
@@ -80,6 +81,9 @@ export function SettingsPage() {
             </div>
           </CardPanel>
         </Card>
+
+        {/* 雲端同步 */}
+        <SyncCard />
 
         {/* 資料管理 */}
         <Card>

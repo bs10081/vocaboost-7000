@@ -1,0 +1,274 @@
+import { useState, useCallback } from 'react'
+import { syncApi } from '@/services/syncApi'
+import { storage } from '@/lib/storage'
+import { formatFullId, parseFullId, type SyncData } from '@/lib/crypto'
+import { STORAGE_KEYS } from '@/types/vocabulary'
+
+export interface SyncAccount {
+  username: string
+  tag: string
+  fullId: string
+}
+
+export function useSync() {
+  // Read sync state from localStorage
+  const getSyncAccount = useCallback((): SyncAccount | null => {
+    const username = localStorage.getItem(STORAGE_KEYS.SYNC_USERNAME)
+    const tag = localStorage.getItem(STORAGE_KEYS.SYNC_TAG)
+
+    if (!username || !tag) return null
+
+    return {
+      username,
+      tag,
+      fullId: formatFullId(username, tag),
+    }
+  }, [])
+
+  const [account, setAccount] = useState<SyncAccount | null>(getSyncAccount())
+  const [isEnabled, setIsEnabled] = useState<boolean>(
+    localStorage.getItem(STORAGE_KEYS.SYNC_ENABLED) === 'true'
+  )
+  const [lastSynced, setLastSynced] = useState<Date | null>(() => {
+    const timestamp = localStorage.getItem(STORAGE_KEYS.SYNC_LAST_SYNCED)
+    return timestamp ? new Date(timestamp) : null
+  })
+  const [dataVersion, setDataVersion] = useState<number>(() => {
+    const version = localStorage.getItem(STORAGE_KEYS.SYNC_VERSION)
+    return version ? parseInt(version, 10) : 0
+  })
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  /**
+   * Prepare sync data from localStorage
+   */
+  const prepareSyncData = useCallback((): SyncData => {
+    const progressMap = storage.getAllProgress()
+    const sessions = storage.getAllSessions()
+    const settings = storage.getSettings()
+    const username = storage.getUsername()
+
+    return {
+      progress: Array.from(progressMap.entries()),
+      sessions,
+      settings,
+      username,
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+    }
+  }, [])
+
+  /**
+   * Apply sync data to localStorage
+   */
+  const applySyncData = useCallback((data: SyncData) => {
+    // Import progress
+    const progressMap = new Map(data.progress)
+    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(Object.fromEntries(progressMap)))
+
+    // Import sessions
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(data.sessions))
+
+    // Import settings
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings))
+
+    // Import username (if exists)
+    if (data.username) {
+      localStorage.setItem(STORAGE_KEYS.USERNAME, data.username)
+    }
+  }, [])
+
+  /**
+   * Register a new sync account
+   */
+  const register = useCallback(
+    async (username: string, pin: string): Promise<SyncAccount> => {
+      setIsSyncing(true)
+      try {
+        // Prepare data to sync
+        const data = prepareSyncData()
+
+        // Register with server
+        const response = await syncApi.register(username, pin, data)
+
+        // Save sync account to localStorage
+        localStorage.setItem(STORAGE_KEYS.SYNC_USERNAME, username)
+        localStorage.setItem(STORAGE_KEYS.SYNC_TAG, response.tag)
+        localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, 'true')
+        localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, response.dataVersion.toString())
+        localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
+
+        const newAccount: SyncAccount = {
+          username,
+          tag: response.tag,
+          fullId: response.fullId,
+        }
+
+        setAccount(newAccount)
+        setIsEnabled(true)
+        setDataVersion(response.dataVersion)
+        setLastSynced(new Date())
+
+        return newAccount
+      } finally {
+        setIsSyncing(false)
+      }
+    },
+    [prepareSyncData]
+  )
+
+  /**
+   * Login (validate credentials)
+   */
+  const login = useCallback(async (fullId: string, pin: string): Promise<void> => {
+    setIsSyncing(true)
+    try {
+      const parsed = parseFullId(fullId)
+      if (!parsed) {
+        throw new Error('無效的 ID 格式，應為 username#TAG123')
+      }
+
+      await syncApi.login(parsed.username, parsed.tag, pin)
+
+      // Login successful - save credentials
+      localStorage.setItem(STORAGE_KEYS.SYNC_USERNAME, parsed.username)
+      localStorage.setItem(STORAGE_KEYS.SYNC_TAG, parsed.tag)
+      localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, 'true')
+
+      setAccount({
+        username: parsed.username,
+        tag: parsed.tag,
+        fullId,
+      })
+      setIsEnabled(true)
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [])
+
+  /**
+   * Sync now (upload current data)
+   */
+  const syncNow = useCallback(
+    async (pin: string): Promise<void> => {
+      if (!account) {
+        throw new Error('未登入同步帳號')
+      }
+
+      setIsSyncing(true)
+      try {
+        const data = prepareSyncData()
+
+        const response = await syncApi.upload(account.username, account.tag, pin, data, dataVersion)
+
+        // Update sync metadata
+        localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, response.dataVersion.toString())
+        localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
+
+        setDataVersion(response.dataVersion)
+        setLastSynced(new Date())
+      } finally {
+        setIsSyncing(false)
+      }
+    },
+    [account, dataVersion, prepareSyncData]
+  )
+
+  /**
+   * Restore data from server
+   */
+  const restoreData = useCallback(
+    async (fullId: string, pin: string): Promise<void> => {
+      setIsSyncing(true)
+      try {
+        const parsed = parseFullId(fullId)
+        if (!parsed) {
+          throw new Error('無效的 ID 格式')
+        }
+
+        // Download and decrypt data
+        const data = await syncApi.download(parsed.username, parsed.tag, pin)
+
+        // Apply to localStorage
+        applySyncData(data)
+
+        // Save sync account
+        localStorage.setItem(STORAGE_KEYS.SYNC_USERNAME, parsed.username)
+        localStorage.setItem(STORAGE_KEYS.SYNC_TAG, parsed.tag)
+        localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, 'true')
+        localStorage.setItem(STORAGE_KEYS.SYNC_LAST_SYNCED, new Date().toISOString())
+
+        // Get version from server
+        const loginResponse = await syncApi.login(parsed.username, parsed.tag, pin)
+        localStorage.setItem(STORAGE_KEYS.SYNC_VERSION, loginResponse.dataVersion.toString())
+
+        setAccount({
+          username: parsed.username,
+          tag: parsed.tag,
+          fullId,
+        })
+        setIsEnabled(true)
+        setDataVersion(loginResponse.dataVersion)
+        setLastSynced(new Date())
+      } finally {
+        setIsSyncing(false)
+      }
+    },
+    [applySyncData]
+  )
+
+  /**
+   * Disconnect (logout locally, don't delete server data)
+   */
+  const disconnect = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.SYNC_USERNAME)
+    localStorage.removeItem(STORAGE_KEYS.SYNC_TAG)
+    localStorage.removeItem(STORAGE_KEYS.SYNC_ENABLED)
+    localStorage.removeItem(STORAGE_KEYS.SYNC_VERSION)
+    localStorage.removeItem(STORAGE_KEYS.SYNC_LAST_SYNCED)
+
+    setAccount(null)
+    setIsEnabled(false)
+    setDataVersion(0)
+    setLastSynced(null)
+  }, [])
+
+  /**
+   * Delete account (remove from server)
+   */
+  const deleteAccount = useCallback(
+    async (pin: string): Promise<void> => {
+      if (!account) {
+        throw new Error('未登入同步帳號')
+      }
+
+      setIsSyncing(true)
+      try {
+        await syncApi.deleteAccount(account.username, account.tag, pin)
+
+        // Clear local sync data
+        disconnect()
+      } finally {
+        setIsSyncing(false)
+      }
+    },
+    [account, disconnect]
+  )
+
+  return {
+    // State
+    account,
+    isEnabled,
+    lastSynced,
+    dataVersion,
+    isSyncing,
+
+    // Actions
+    register,
+    login,
+    syncNow,
+    restoreData,
+    disconnect,
+    deleteAccount,
+  }
+}
