@@ -132,10 +132,6 @@ export function StudyPage() {
           word={currentWord}
           isFlipped={isFlipped}
           onFlip={flipCard}
-          onSwipeLeft={answerDontKnow}
-          onSwipeRight={answerKnow}
-          onSwipeUp={goToPrevious}
-          onSwipeDown={goToPrevious}
         />
       </div>
 
@@ -149,7 +145,12 @@ export function StudyPage() {
 
       {/* 答題按鈕 */}
       <div className="mb-6">
-        <AnswerButtons onDontKnow={answerDontKnow} onKnow={answerKnow} />
+        <AnswerButtons
+          onDontKnow={answerDontKnow}
+          onKnow={answerKnow}
+          onPrevious={goToPrevious}
+          canGoPrevious={history.length > 0}
+        />
       </div>
 
       {/* 鍵盤提示 */}
@@ -159,7 +160,7 @@ export function StudyPage() {
 
       {/* 觸控提示（行動裝置） */}
       <div className="flex md:hidden justify-center text-sm text-muted-foreground">
-        <span>← 不會 | 會 → | ↓ 上一題 | 點擊翻面</span>
+        <span>點擊卡片翻面</span>
       </div>
 
       {/* 錯誤統計 */}
