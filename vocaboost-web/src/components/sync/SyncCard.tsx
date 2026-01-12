@@ -33,7 +33,13 @@ export function SyncCard() {
       // 3 秒後自動清除成功消息
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '同步失敗')
+      const message = err instanceof Error ? err.message : '同步失敗'
+      // 改進錯誤訊息
+      if (message === 'INVALID_PIN' || message.includes('Invalid PIN')) {
+        setError('PIN 碼錯誤，請確認輸入的是註冊時設定的 6 位數字')
+      } else {
+        setError(message)
+      }
     }
   }
 
