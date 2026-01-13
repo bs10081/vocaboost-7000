@@ -1,5 +1,11 @@
 import { Hono } from 'hono'
 import type { D1Database } from '@cloudflare/workers-types'
+import {
+  checkRateLimit,
+  checkAccountLock,
+  recordFailedAttempt,
+  resetFailedAttempts,
+} from '../middleware/security'
 
 type Bindings = {
   DB: D1Database
@@ -110,11 +116,29 @@ sync.post('/register', async (c) => {
  */
 sync.post('/login', async (c) => {
   try {
+    // Check rate limit
+    const rateLimited = await checkRateLimit(c, c.env.DB)
+    if (rateLimited) {
+      return c.json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: '請求過於頻繁，請稍後再試',
+      }, 429)
+    }
+
     const body = await c.req.json()
     const { username, tag, pinHash } = body
 
     if (!username || !tag || !pinHash) {
       return c.json({ error: 'MISSING_FIELDS', message: 'Username, tag, and pinHash are required' }, 400)
+    }
+
+    // Check if account is locked
+    const lockMessage = await checkAccountLock(c.env.DB, username, tag)
+    if (lockMessage) {
+      return c.json({
+        error: 'ACCOUNT_LOCKED',
+        message: lockMessage,
+      }, 423)
     }
 
     // Fetch user record
@@ -130,8 +154,13 @@ sync.post('/login', async (c) => {
 
     // Validate PIN hash
     if (record.pin_hash !== pinHash) {
+      // Record failed attempt
+      await recordFailedAttempt(c.env.DB, username, tag)
       return c.json({ error: 'INVALID_PIN', message: 'Invalid PIN' }, 401)
     }
+
+    // Success - reset failed attempts
+    await resetFailedAttempts(c.env.DB, username, tag)
 
     return c.json({
       success: true,
@@ -150,6 +179,15 @@ sync.post('/login', async (c) => {
  */
 sync.post('/login-simple', async (c) => {
   try {
+    // Check rate limit
+    const rateLimited = await checkRateLimit(c, c.env.DB)
+    if (rateLimited) {
+      return c.json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: '請求過於頻繁，請稍後再試',
+      }, 429)
+    }
+
     const body = await c.req.json()
     const { username, pinHash } = body
 
@@ -171,16 +209,25 @@ sync.post('/login-simple', async (c) => {
     if (records.results.length === 1) {
       // Unique match - auto-login successful
       const record = records.results[0]
+      const tag = record.tag as string
+
+      // Reset failed attempts on successful login
+      await resetFailedAttempts(c.env.DB, username, tag)
+
       return c.json({
         success: true,
-        tag: record.tag,
-        fullId: `${username}#${record.tag}`,
+        tag,
+        fullId: `${username}#${tag}`,
         dataVersion: record.data_version,
         updatedAt: record.updated_at,
       })
     }
 
-    // Multiple matches - return list for user to choose
+    // Multiple matches - reset all accounts' failed attempts
+    for (const record of records.results) {
+      await resetFailedAttempts(c.env.DB, username, record.tag as string)
+    }
+
     return c.json({
       error: 'MULTIPLE_ACCOUNTS',
       message: '有多個帳號使用相同的名稱和 PIN，請選擇您的帳號',
@@ -202,11 +249,29 @@ sync.post('/login-simple', async (c) => {
  */
 sync.post('/upload', async (c) => {
   try {
+    // Check rate limit
+    const rateLimited = await checkRateLimit(c, c.env.DB)
+    if (rateLimited) {
+      return c.json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: '請求過於頻繁，請稍後再試',
+      }, 429)
+    }
+
     const body = await c.req.json()
     const { username, tag, pinHash, encryptedData, encryptionMeta, expectedVersion } = body
 
     if (!username || !tag || !pinHash || !encryptedData || !encryptionMeta) {
       return c.json({ error: 'MISSING_FIELDS' }, 400)
+    }
+
+    // Check if account is locked
+    const lockMessage = await checkAccountLock(c.env.DB, username, tag)
+    if (lockMessage) {
+      return c.json({
+        error: 'ACCOUNT_LOCKED',
+        message: lockMessage,
+      }, 423)
     }
 
     // Fetch current record
@@ -222,8 +287,13 @@ sync.post('/upload', async (c) => {
 
     // Validate PIN
     if (record.pin_hash !== pinHash) {
+      // Record failed attempt
+      await recordFailedAttempt(c.env.DB, username, tag)
       return c.json({ error: 'INVALID_PIN' }, 401)
     }
+
+    // Success - reset failed attempts
+    await resetFailedAttempts(c.env.DB, username, tag)
 
     // Check version conflict (optimistic locking)
     if (expectedVersion !== undefined && record.data_version !== expectedVersion) {
@@ -261,11 +331,29 @@ sync.post('/upload', async (c) => {
  */
 sync.post('/download', async (c) => {
   try {
+    // Check rate limit
+    const rateLimited = await checkRateLimit(c, c.env.DB)
+    if (rateLimited) {
+      return c.json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: '請求過於頻繁，請稍後再試',
+      }, 429)
+    }
+
     const body = await c.req.json()
     const { username, tag, pinHash } = body
 
     if (!username || !tag || !pinHash) {
       return c.json({ error: 'MISSING_FIELDS' }, 400)
+    }
+
+    // Check if account is locked
+    const lockMessage = await checkAccountLock(c.env.DB, username, tag)
+    if (lockMessage) {
+      return c.json({
+        error: 'ACCOUNT_LOCKED',
+        message: lockMessage,
+      }, 423)
     }
 
     // Fetch record
@@ -281,8 +369,13 @@ sync.post('/download', async (c) => {
 
     // Validate PIN
     if (record.pin_hash !== pinHash) {
+      // Record failed attempt
+      await recordFailedAttempt(c.env.DB, username, tag)
       return c.json({ error: 'INVALID_PIN' }, 401)
     }
+
+    // Success - reset failed attempts
+    await resetFailedAttempts(c.env.DB, username, tag)
 
     return c.json({
       encryptedData: record.encrypted_data,
@@ -302,6 +395,15 @@ sync.post('/download', async (c) => {
  */
 sync.post('/download-simple', async (c) => {
   try {
+    // Check rate limit
+    const rateLimited = await checkRateLimit(c, c.env.DB)
+    if (rateLimited) {
+      return c.json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: '請求過於頻繁，請稍後再試',
+      }, 429)
+    }
+
     const body = await c.req.json()
     const { username, pinHash, tag: selectedTag } = body
 
@@ -311,6 +413,15 @@ sync.post('/download-simple', async (c) => {
 
     // If tag is provided (user selected from multiple accounts), use it directly
     if (selectedTag) {
+      // Check if account is locked
+      const lockMessage = await checkAccountLock(c.env.DB, username, selectedTag)
+      if (lockMessage) {
+        return c.json({
+          error: 'ACCOUNT_LOCKED',
+          message: lockMessage,
+        }, 423)
+      }
+
       const record = await c.env.DB.prepare(`
         SELECT encrypted_data, encryption_meta, data_version, updated_at, pin_hash
         FROM user_sync
@@ -320,6 +431,9 @@ sync.post('/download-simple', async (c) => {
       if (!record) {
         return c.json({ error: 'USER_NOT_FOUND' }, 404)
       }
+
+      // Reset failed attempts on successful download
+      await resetFailedAttempts(c.env.DB, username, selectedTag)
 
       return c.json({
         tag: selectedTag,
@@ -344,8 +458,13 @@ sync.post('/download-simple', async (c) => {
     if (records.results.length === 1) {
       // Unique match - return data directly
       const record = records.results[0]
+      const tag = record.tag as string
+
+      // Reset failed attempts on successful download
+      await resetFailedAttempts(c.env.DB, username, tag)
+
       return c.json({
-        tag: record.tag,
+        tag,
         encryptedData: record.encrypted_data,
         encryptionMeta: JSON.parse(record.encryption_meta as string),
         dataVersion: record.data_version,
@@ -353,7 +472,11 @@ sync.post('/download-simple', async (c) => {
       })
     }
 
-    // Multiple matches - return list for user to choose
+    // Multiple matches - reset all accounts' failed attempts
+    for (const record of records.results) {
+      await resetFailedAttempts(c.env.DB, username, record.tag as string)
+    }
+
     return c.json({
       error: 'MULTIPLE_ACCOUNTS',
       message: '有多個帳號使用相同的名稱和 PIN，請選擇您的帳號',

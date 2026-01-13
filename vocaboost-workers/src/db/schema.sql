@@ -46,3 +46,21 @@ CREATE TABLE IF NOT EXISTS user_sync (
 -- Indexes for efficient queries
 CREATE INDEX IF NOT EXISTS idx_user_sync_username ON user_sync(username);
 CREATE INDEX IF NOT EXISTS idx_user_sync_tag ON user_sync(tag);
+
+-- Rate Limiting Table
+CREATE TABLE IF NOT EXISTS rate_limits (
+  ip TEXT PRIMARY KEY,
+  request_count INTEGER NOT NULL DEFAULT 1,
+  window_start INTEGER NOT NULL,  -- Unix timestamp (seconds)
+  expires_at INTEGER NOT NULL     -- Unix timestamp (seconds) for cleanup
+);
+
+-- Account Lock Table (for failed login attempts)
+CREATE TABLE IF NOT EXISTS account_locks (
+  username TEXT NOT NULL,
+  tag TEXT NOT NULL,
+  failed_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until INTEGER,           -- Unix timestamp (seconds), null if not locked
+  last_attempt INTEGER NOT NULL,  -- Unix timestamp (seconds)
+  PRIMARY KEY (username, tag)
+);
