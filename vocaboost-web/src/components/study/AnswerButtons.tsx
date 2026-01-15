@@ -5,11 +5,12 @@ interface AnswerButtonsProps {
   onDontKnow: () => void
   onKnow: () => void
   onPrevious?: () => void
+  onFlip?: () => void
   disabled?: boolean
   canGoPrevious?: boolean
 }
 
-export function AnswerButtons({ onDontKnow, onKnow, onPrevious, disabled, canGoPrevious }: AnswerButtonsProps) {
+export function AnswerButtons({ onDontKnow, onKnow, onPrevious, onFlip, disabled, canGoPrevious }: AnswerButtonsProps) {
   return (
     <div className="flex gap-2 justify-center w-full max-w-md mx-auto">
       {canGoPrevious && onPrevious && (
@@ -22,6 +23,19 @@ export function AnswerButtons({ onDontKnow, onKnow, onPrevious, disabled, canGoP
         >
           <span className="text-lg">↶</span>
           <span className="ml-1 hidden sm:inline">上一題</span>
+        </Button>
+      )}
+      {onFlip && (
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={onFlip}
+          disabled={disabled}
+          className="px-4 md:px-6 h-12 md:h-11"
+          title="翻面 (空格)"
+        >
+          <span className="text-lg">↻</span>
+          <span className="ml-1 hidden sm:inline">翻面</span>
         </Button>
       )}
       <Button

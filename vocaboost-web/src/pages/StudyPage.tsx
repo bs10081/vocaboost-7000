@@ -160,6 +160,7 @@ export function StudyPage() {
           onDontKnow={answerDontKnow}
           onKnow={answerKnow}
           onPrevious={goToPrevious}
+          onFlip={flipCard}
           canGoPrevious={history.length > 0}
         />
       </div>
