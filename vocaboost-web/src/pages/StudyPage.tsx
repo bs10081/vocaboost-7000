@@ -16,7 +16,7 @@ export function StudyPage() {
   const navigate = useNavigate()
   const { mode, level } = useParams<{ mode: string; level?: string }>()
   const { vocabulary, loading } = useVocabulary()
-  const { speak } = useTTS()
+  const { speak, isLoading: ttsLoading } = useTTS()
   const { autoSync, isEnabled: syncEnabled } = useSync()
 
   const {
@@ -149,6 +149,7 @@ export function StudyPage() {
       <div className="flex justify-center mb-4">
         <TTSButton
           text={currentWord.word}
+          isLoading={ttsLoading}
           onClick={() => speak(currentWord.word)}
         />
       </div>
