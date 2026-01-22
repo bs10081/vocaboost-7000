@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FlashCard } from '@/components/study/FlashCard'
 import { AnswerButtons } from '@/components/study/AnswerButtons'
 import { KeyboardHints } from '@/components/study/KeyboardHints'
@@ -15,6 +15,7 @@ import { useSync } from '@/hooks/useSync'
 export function StudyPage() {
   const navigate = useNavigate()
   const { mode, level } = useParams<{ mode: string; level?: string }>()
+  const [searchParams] = useSearchParams()
   const { vocabulary, loading } = useVocabulary()
   const { speak, isLoading: ttsLoading } = useTTS()
   const { autoSync, isEnabled: syncEnabled } = useSync()
@@ -24,6 +25,7 @@ export function StudyPage() {
     currentIndex,
     isFlipped,
     wrongWords,
+    history,
     startStudy,
     flipCard,
     answerKnow,
@@ -38,8 +40,9 @@ export function StudyPage() {
     if (loading || !mode) return
 
     const levelNum = level ? parseInt(level) : undefined
-    startStudy(mode as any, vocabulary, levelNum)
-  }, [mode, level, vocabulary, loading])
+    const completeLevel = searchParams.get('all') === 'true'
+    startStudy(mode as any, vocabulary, levelNum, completeLevel)
+  }, [mode, level, vocabulary, loading, searchParams])
 
   // 自動同步：完成學習後觸發
   useEffect(() => {

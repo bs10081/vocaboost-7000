@@ -8,16 +8,50 @@ import { storage } from '@/lib/storage'
 export function SettingsPage() {
   const navigate = useNavigate()
   const [wordsPerSession, setWordsPerSession] = useState(20)
+  const [customCount, setCustomCount] = useState<string>('')
+  const [isCustomMode, setIsCustomMode] = useState(false)
 
   // 載入設定
   useEffect(() => {
     const settings = storage.getSettings()
-    setWordsPerSession(settings.words_per_session)
+    const currentCount = settings.words_per_session
+    setWordsPerSession(currentCount)
+
+    // 檢查是否為自訂數量（不在預設選項中）
+    const presetOptions = [5, 10, 15, 20, 30, 50]
+    if (!presetOptions.includes(currentCount)) {
+      setIsCustomMode(true)
+      setCustomCount(String(currentCount))
+    }
   }, [])
 
   const handleWordsPerSessionChange = (value: number) => {
     setWordsPerSession(value)
+    setIsCustomMode(false)
+    setCustomCount('')
     storage.setSettings({ words_per_session: value })
+  }
+
+  const handleCustomCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setCustomCount(value)
+
+    // 驗證並儲存
+    const numValue = parseInt(value)
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 500) {
+      setWordsPerSession(numValue)
+      storage.setSettings({ words_per_session: numValue })
+    }
+  }
+
+  const handleCustomModeToggle = () => {
+    if (!isCustomMode) {
+      setIsCustomMode(true)
+      setCustomCount(String(wordsPerSession))
+    } else {
+      setIsCustomMode(false)
+      setCustomCount('')
+    }
   }
 
   const handleClearData = () => {
@@ -63,11 +97,11 @@ export function SettingsPage() {
               <label className="text-sm font-medium mb-3 block">
                 每次學習單字數量
               </label>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
                 {wordCountOptions.map((count) => (
                   <Button
                     key={count}
-                    variant={wordsPerSession === count ? 'default' : 'outline'}
+                    variant={wordsPerSession === count && !isCustomMode ? 'default' : 'outline'}
                     onClick={() => handleWordsPerSessionChange(count)}
                     className="h-12"
                   >
@@ -75,6 +109,35 @@ export function SettingsPage() {
                   </Button>
                 ))}
               </div>
+
+              {/* 自訂數量區塊 */}
+              <div className="space-y-3">
+                <Button
+                  variant={isCustomMode ? 'default' : 'outline'}
+                  onClick={handleCustomModeToggle}
+                  className="w-full"
+                >
+                  {isCustomMode ? '使用自訂數量' : '自訂數量'}
+                </Button>
+
+                {isCustomMode && (
+                  <div className="space-y-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      value={customCount}
+                      onChange={handleCustomCountChange}
+                      placeholder="輸入 1-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-800 dark:border-gray-600"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      目前設定: {wordsPerSession} 個單字
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <p className="text-xs text-muted-foreground mt-3">
                 選擇較少單字適合短時間學習，較多單字適合長時間專注學習。
               </p>

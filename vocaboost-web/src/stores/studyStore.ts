@@ -44,7 +44,7 @@ interface StudyState {
   wrongWords: VocabularyWord[] // 答錯的重測
 
   // Actions
-  startStudy: (mode: StudyMode, vocabulary: VocabularyWord[], level?: number) => void
+  startStudy: (mode: StudyMode, vocabulary: VocabularyWord[], level?: number, completeLevel?: boolean) => void
   flipCard: () => void
   answerKnow: () => void
   answerDontKnow: () => void
@@ -65,16 +65,18 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   wrongWords: [],
 
   // 開始學習
-  startStudy: (mode, vocabulary, level) => {
+  startStudy: (mode, vocabulary, level, completeLevel = false) => {
     let words: VocabularyWord[] = []
 
     if (mode === 'review') {
       words = storage.getDueWords(vocabulary)
     } else if (mode === 'new') {
       words = storage.getNewWords(vocabulary, level)
-      // 限制新單字數量（從設定讀取）
-      const settings = storage.getSettings()
-      words = words.slice(0, settings.words_per_session)
+      // 如果不是「完成整個級別」模式，限制新單字數量
+      if (!completeLevel) {
+        const settings = storage.getSettings()
+        words = words.slice(0, settings.words_per_session)
+      }
     } else if (mode === 'favorite') {
       words = storage.getFavorites(vocabulary)
     }
