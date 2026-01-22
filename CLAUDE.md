@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 資料流架構
 ```
-PDF 解析 (pdf_parser.py)
+PDF 解析 (private/src/pdf_parser.py)
     ↓
 SQLite 資料庫 (database.py)
     ↓
@@ -47,9 +47,10 @@ pip install -r requirements.txt
 
 ### 資料庫管理
 ```bash
-# 初始化資料庫（首次使用）
-# 需要先將「教育部7000單字(Level1-7).pdf」放在專案根目錄
-python3 init_database.py
+# 初始化資料庫（首次使用，需要私有資料存取權限）
+# 確保已初始化 submodule
+git submodule update --init
+python3 private/scripts/init_database.py
 
 # 資料庫遷移（升級現有資料庫結構）
 python3 migrate_database.py
@@ -96,9 +97,42 @@ python3 src/quiz_engine.py       # 測試測驗引擎
 
 ## 資料來源
 
-單字資料來自「教育部7000單字(Level1-7).pdf」，使用 pdfplumber 解析提取。PDF 格式預期：
-- 每行包含：單字、音標、詞性、中文翻譯、級別
-- 使用 `pdf_parser.py` 的正規表達式模式匹配
+單字資料來自「教育部7000單字(Level1-7).pdf」，使用 pdfplumber 解析提取。
+
+### 私有資料（需要存取權限）
+
+敏感資料（PDF、解析器、資料庫）存放在私有 submodule 中：`private/`
+
+**初始化 submodule**：
+```bash
+git submodule update --init
+```
+
+**專案結構**：
+```
+private/
+├── pdf/
+│   └── 教育部7000單字(Level1-7).pdf    # 原始 PDF（版權保護）
+├── src/
+│   └── pdf_parser.py                   # PDF 解析器（支援多行翻譯合併）
+├── scripts/
+│   └── init_database.py                # 資料庫初始化腳本
+└── data/
+    └── vocabulary.db                   # 預建資料庫（6304 單字）
+```
+
+**PDF 格式特點**：
+- 雙欄排版，每行包含：單字、音標、詞性、中文翻譯
+- 部分翻譯跨越多行，解析器已處理此問題
+- 使用正規表達式模式匹配和續行合併技術
+
+**重新建立資料庫**：
+```bash
+python3 private/scripts/init_database.py
+python3 export_vocabulary.py
+```
+
+**注意**：沒有私有 submodule 存取權限的使用者仍可使用已匯出的 `vocaboost-web/public/vocabulary.json`。
 
 ---
 

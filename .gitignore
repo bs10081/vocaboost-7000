@@ -46,6 +46,5 @@ Thumbs.db
 # Claude
 .claude/
 
-# PDF parser related (removed for open source)
-src/pdf_parser.py
-init_database.py
+# Private data (managed via submodule)
+# See: private/ submodule for PDF, parser, and database
