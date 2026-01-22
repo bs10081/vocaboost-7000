@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardPanel } from '@/components/ui/Card'
@@ -10,6 +10,7 @@ import { storage } from '@/lib/storage'
 export function HomePage() {
   const navigate = useNavigate()
   const { vocabulary, loading } = useVocabulary()
+  const [completeLevelMode, setCompleteLevelMode] = useState(false)
 
   if (loading) {
     return (
@@ -31,7 +32,11 @@ export function HomePage() {
   }
 
   const handleStartNew = (level: number) => {
-    navigate(`/study/new/${level}`)
+    if (completeLevelMode) {
+      navigate(`/study/new/${level}?all=true`)
+    } else {
+      navigate(`/study/new/${level}`)
+    }
   }
 
   const handleFavorites = () => {
@@ -104,8 +109,21 @@ export function HomePage() {
         {/* 學習新單字 */}
         <Card>
           <CardHeader>
-            <CardTitle>學習新單字</CardTitle>
-            <CardDescription>選擇級別開始學習</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>學習新單字</CardTitle>
+                <CardDescription>選擇級別開始學習</CardDescription>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={completeLevelMode}
+                  onChange={(e) => setCompleteLevelMode(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span className="text-sm font-medium">完成整個級別</span>
+              </label>
+            </div>
           </CardHeader>
           <CardPanel>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
