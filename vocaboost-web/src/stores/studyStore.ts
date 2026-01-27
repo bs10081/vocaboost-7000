@@ -52,6 +52,7 @@ interface StudyState {
   nextWord: () => void
   reset: () => void
   isFinished: () => boolean
+  startRetest: () => void
 }
 
 export const useStudyStore = create<StudyState>((set, get) => ({
@@ -137,10 +138,10 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     // 記錄答案
     storage.recordAnswer(word.id, false, isNew)
 
-    // 加入答錯列表（稍後重測）
-    if (!wrongWords.find((w) => w.id === word.id)) {
-      wrongWords.push(word)
-    }
+    // 加入答錯列表（使用不可變方式更新陣列）
+    const newWrongWords = wrongWords.find((w) => w.id === word.id)
+      ? wrongWords
+      : [...wrongWords, word]
 
     const nextIndex = currentIndex + 1
 
@@ -149,7 +150,7 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       currentIndex: nextIndex,
       isFlipped: false,
       history: [...history, currentIndex],
-      wrongWords,
+      wrongWords: newWrongWords,
     })
 
     // 如果完成學習，自動同步分數
@@ -200,5 +201,22 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   isFinished: () => {
     const { words, currentIndex } = get()
     return currentIndex >= words.length
+  },
+
+  // 立即重測錯詞
+  startRetest: () => {
+    const { wrongWords } = get()
+    if (wrongWords.length === 0) return
+
+    // 打亂錯詞順序
+    const shuffled = [...wrongWords].sort(() => Math.random() - 0.5)
+
+    set({
+      words: shuffled,
+      currentIndex: 0,
+      isFlipped: false,
+      history: [],
+      wrongWords: [],
+    })
   },
 }))

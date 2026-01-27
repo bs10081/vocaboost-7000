@@ -18,6 +18,7 @@ export interface LearningProgress {
   correct_count: number // 答對次數
   is_favorite: boolean // 是否收藏
   last_reviewed: string // 最後複習時間 (ISO string)
+  consecutive_failures?: number // 連續答錯次數（向後兼容，可選）
 }
 
 // 學習統計

@@ -149,6 +149,7 @@ class StorageManager {
         correct_count: know ? 1 : 0,
         is_favorite: false,
         last_reviewed: new Date().toISOString(),
+        consecutive_failures: know ? 0 : 1,
       }
       this.setProgress(vocabularyId, newProgress)
     } else if (progress) {
@@ -167,6 +168,7 @@ class StorageManager {
         review_count: progress.review_count + 1,
         correct_count: progress.correct_count + (know ? 1 : 0),
         last_reviewed: new Date().toISOString(),
+        consecutive_failures: know ? 0 : (progress.consecutive_failures || 0) + 1,
       }
       this.setProgress(vocabularyId, updatedProgress)
     }

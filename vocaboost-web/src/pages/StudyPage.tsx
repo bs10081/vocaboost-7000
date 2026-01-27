@@ -33,6 +33,7 @@ export function StudyPage() {
     goToPrevious,
     reset,
     isFinished,
+    startRetest,
   } = useStudyStore()
 
   // 初始化學習
@@ -105,9 +106,16 @@ export function StudyPage() {
               其中 {wrongWords.length} 個需要加強複習
             </p>
           )}
-          <Button size="lg" onClick={() => navigate('/')}>
-            返回首頁
-          </Button>
+          <div className="flex gap-3 justify-center">
+            {wrongWords.length > 0 && (
+              <Button size="lg" variant="destructive" onClick={startRetest}>
+                立即重測錯詞
+              </Button>
+            )}
+            <Button size="lg" onClick={() => navigate('/')}>
+              返回首頁
+            </Button>
+          </div>
         </div>
       </div>
     )
