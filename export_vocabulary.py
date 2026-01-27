@@ -12,7 +12,7 @@ from pathlib import Path
 def export_vocabulary_to_json():
     """從 SQLite 資料庫導出所有單字到 JSON"""
 
-    db_path = Path("data/vocabulary.db")
+    db_path = Path("private/data/vocabulary.db")
     output_path = Path("vocaboost-web/public/vocabulary.json")
 
     if not db_path.exists():
