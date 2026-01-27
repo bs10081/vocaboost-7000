@@ -12,8 +12,8 @@ from pathlib import Path
 def export_vocabulary_to_json():
     """從 SQLite 資料庫導出所有單字到 JSON"""
 
-    db_path = Path("data/vocabulary.db")
-    output_path = Path("vocaboost-web/frontend/src/data/vocabulary.json")
+    db_path = Path("private/data/vocabulary.db")
+    output_path = Path("vocaboost-web/public/vocabulary.json")
 
     if not db_path.exists():
         print(f"錯誤：找不到資料庫檔案 {db_path}")
