@@ -28,6 +28,7 @@ env/
 # Database files (users need to generate their own)
 data/*.db
 data/*.db-journal
+data/*.db.bak
 
 # PDF files (copyright issues)
 *.pdf
@@ -46,5 +47,14 @@ Thumbs.db
 # Claude
 .claude/
 
-# Private data (managed via submodule)
-# See: private/ submodule for PDF, parser, and database
+# Private data (now only local, not submodule)
+private/
+
+# Node.js
+node_modules/
+package-lock.json
+*.log
+
+# Build outputs
+public/
+vocaboost-web/frontend/
