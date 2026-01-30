@@ -24,6 +24,7 @@ export function HomePage() {
   }
 
   const dueWords = storage.getDueWords(vocabulary)
+  const difficultWords = storage.getDifficultWords(vocabulary)
   const todayStats = storage.getTodayStats()
   const streakDays = storage.getStreakDays()
 
@@ -41,6 +42,10 @@ export function HomePage() {
 
   const handleFavorites = () => {
     navigate('/study/favorite')
+  }
+
+  const handleDifficult = () => {
+    navigate('/study/difficult')
   }
 
   return (
@@ -129,17 +134,43 @@ export function HomePage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[1, 2, 3, 4, 5, 6].map((level) => {
                 const newWords = storage.getNewWords(vocabulary, level)
+                const learnedWords = storage.getLearnedWords(vocabulary, level)
+                const hasNewWords = newWords.length > 0
+                const hasLearnedWords = learnedWords.length > 0
+
                 return (
-                  <Button
-                    key={level}
-                    variant="outline"
-                    onClick={() => handleStartNew(level)}
-                    disabled={newWords.length === 0}
-                    className="h-20 flex flex-col"
-                  >
-                    <span className="text-lg font-bold">Level {level}</span>
-                    <span className="text-sm text-muted-foreground">{newWords.length} 個</span>
-                  </Button>
+                  <div key={level} className="flex flex-col gap-1">
+                    {/* 主按鈕：學習新單字 */}
+                    <Button
+                      variant={hasNewWords ? 'outline' : 'ghost'}
+                      onClick={() => handleStartNew(level)}
+                      disabled={!hasNewWords}
+                      className="h-16 flex flex-col"
+                    >
+                      <span className="text-lg font-bold">Level {level}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {hasNewWords ? `${newWords.length} 個新` : '已完成'}
+                      </span>
+                    </Button>
+
+                    {/* 次要按鈕：重新學習 */}
+                    {!hasNewWords && hasLearnedWords && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (completeLevelMode) {
+                            navigate(`/study/relearn/${level}?all=true`)
+                          } else {
+                            navigate(`/study/relearn/${level}`)
+                          }
+                        }}
+                        className="text-xs text-muted-foreground h-8"
+                      >
+                        重新學習 ({learnedWords.length})
+                      </Button>
+                    )}
+                  </div>
                 )
               })}
             </div>
@@ -148,6 +179,22 @@ export function HomePage() {
 
         {/* 其他功能 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Button
+            variant="secondary"
+            onClick={handleDifficult}
+            className="h-16 relative"
+            disabled={difficultWords.length === 0}
+          >
+            困難單字
+            {difficultWords.length > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -top-2 -right-2"
+              >
+                {difficultWords.length}
+              </Badge>
+            )}
+          </Button>
           <Button variant="secondary" onClick={handleFavorites} className="h-16">
             收藏難詞
           </Button>

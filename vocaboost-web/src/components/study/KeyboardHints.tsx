@@ -26,6 +26,10 @@ export function KeyboardHints() {
         <Kbd>G</Kbd>
         <span>朗讀</span>
       </div>
+      <div className="flex items-center gap-2">
+        <Kbd>D</Kbd>
+        <span>標記困難</span>
+      </div>
     </div>
   )
 }

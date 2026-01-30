@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FlashCard } from '@/components/study/FlashCard'
 import { AnswerButtons } from '@/components/study/AnswerButtons'
@@ -11,6 +11,7 @@ import { useStudyStore } from '@/stores/studyStore'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useTTS } from '@/hooks/useTTS'
 import { useSync } from '@/hooks/useSync'
+import { storage } from '@/lib/storage'
 
 export function StudyPage() {
   const navigate = useNavigate()
@@ -34,7 +35,21 @@ export function StudyPage() {
     reset,
     isFinished,
     startRetest,
+    toggleCurrentDifficult,
   } = useStudyStore()
+
+  // 追蹤困難狀態變化
+  const [difficultStates, setDifficultStates] = useState<Record<number, boolean>>({})
+
+  // 處理標記困難
+  const handleToggleDifficult = () => {
+    if (!words[currentIndex]) return
+    const newState = toggleCurrentDifficult()
+    setDifficultStates(prev => ({
+      ...prev,
+      [words[currentIndex].id]: newState
+    }))
+  }
 
   // 初始化學習
   useEffect(() => {
@@ -66,6 +81,7 @@ export function StudyPage() {
           speak(words[currentIndex].word)
         }
       },
+      d: handleToggleDifficult,
     },
   })
 
@@ -124,6 +140,10 @@ export function StudyPage() {
   const currentWord = words[currentIndex]
   const progress = ((currentIndex / words.length) * 100).toFixed(0)
 
+  // 取得當前單字的困難狀態
+  const currentProgress = storage.getProgress(currentWord.id)
+  const isDifficult = difficultStates[currentWord.id] ?? currentProgress?.is_difficult ?? false
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl min-h-screen flex flex-col">
       {/* 頂部導航 */}
@@ -156,13 +176,21 @@ export function StudyPage() {
         />
       </div>
 
-      {/* TTS 按鈕 */}
-      <div className="flex justify-center mb-4">
+      {/* TTS 按鈕和標記困難 */}
+      <div className="flex justify-center gap-3 mb-4">
         <TTSButton
           text={currentWord.word}
           isLoading={ttsLoading}
           onClick={() => speak(currentWord.word)}
         />
+        <Button
+          variant={isDifficult ? 'destructive' : 'outline'}
+          size="sm"
+          onClick={handleToggleDifficult}
+          title={isDifficult ? '取消困難標記' : '標記為困難'}
+        >
+          {isDifficult ? '⚠️ 困難' : '📌 標記困難'}
+        </Button>
       </div>
 
       {/* 答題按鈕 */}

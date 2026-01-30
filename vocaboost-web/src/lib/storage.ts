@@ -9,7 +9,7 @@ import type {
   StudySession,
   Settings,
 } from '@/types/vocabulary'
-import { STORAGE_KEYS } from '@/types/vocabulary'
+import { STORAGE_KEYS, DIFFICULT_THRESHOLD } from '@/types/vocabulary'
 import { calculateBinary, getTodayString, compareDates } from './sm2'
 
 class StorageManager {
@@ -126,6 +126,66 @@ class StorageManager {
     return newFavoriteStatus
   }
 
+  // ============ 困難單字管理 ============
+
+  /**
+   * 取得困難單字
+   */
+  getDifficultWords(vocabulary: VocabularyWord[]): VocabularyWord[] {
+    const allProgress = this.getAllProgress()
+
+    return vocabulary.filter(word => {
+      const progress = allProgress.get(word.id)
+      return progress?.is_difficult === true
+    })
+  }
+
+  /**
+   * 手動標記/取消困難狀態
+   * @returns 新的困難狀態
+   */
+  toggleDifficult(vocabularyId: number): boolean {
+    const progress = this.getProgress(vocabularyId)
+    if (!progress) {
+      // 如果尚未有進度，建立一個初始進度並設為困難
+      const newProgress: LearningProgress = {
+        vocabulary_id: vocabularyId,
+        ease_factor: 2.5,
+        interval_days: 0,
+        next_review: getTodayString(),
+        review_count: 0,
+        correct_count: 0,
+        is_favorite: false,
+        last_reviewed: new Date().toISOString(),
+        consecutive_failures: 0,
+        is_difficult: true,
+        marked_difficult_at: new Date().toISOString(),
+      }
+      this.setProgress(vocabularyId, newProgress)
+      return true
+    }
+
+    const newDifficultStatus = !progress.is_difficult
+    this.setProgress(vocabularyId, {
+      ...progress,
+      is_difficult: newDifficultStatus,
+      marked_difficult_at: newDifficultStatus ? new Date().toISOString() : undefined,
+    })
+    return newDifficultStatus
+  }
+
+  /**
+   * 取得已學習過的單字（用於重學功能）
+   */
+  getLearnedWords(vocabulary: VocabularyWord[], level?: number): VocabularyWord[] {
+    const allProgress = this.getAllProgress()
+
+    return vocabulary.filter(word => {
+      if (level !== undefined && word.level !== level) return false
+      return allProgress.has(word.id)
+    })
+  }
+
   // ============ 學習記錄 ============
 
   /**
@@ -150,6 +210,7 @@ class StorageManager {
         is_favorite: false,
         last_reviewed: new Date().toISOString(),
         consecutive_failures: know ? 0 : 1,
+        is_difficult: false,
       }
       this.setProgress(vocabularyId, newProgress)
     } else if (progress) {
@@ -160,6 +221,12 @@ class StorageManager {
         progress.interval_days,
         progress.review_count
       )
+
+      const consecutiveFailures = know ? 0 : (progress.consecutive_failures || 0) + 1
+
+      // 檢查是否需要自動標記為困難
+      const shouldMarkDifficult = consecutiveFailures >= DIFFICULT_THRESHOLD && !progress.is_difficult
+
       const updatedProgress: LearningProgress = {
         ...progress,
         ease_factor: sm2Result.ease_factor,
@@ -168,7 +235,9 @@ class StorageManager {
         review_count: progress.review_count + 1,
         correct_count: progress.correct_count + (know ? 1 : 0),
         last_reviewed: new Date().toISOString(),
-        consecutive_failures: know ? 0 : (progress.consecutive_failures || 0) + 1,
+        consecutive_failures: consecutiveFailures,
+        is_difficult: shouldMarkDifficult ? true : progress.is_difficult,
+        marked_difficult_at: shouldMarkDifficult ? new Date().toISOString() : progress.marked_difficult_at,
       }
       this.setProgress(vocabularyId, updatedProgress)
     }

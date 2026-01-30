@@ -3,7 +3,7 @@ import type { VocabularyWord } from '@/types/vocabulary'
 import { storage } from '@/lib/storage'
 import { leaderboardApi } from '@/services/leaderboardApi'
 
-export type StudyMode = 'review' | 'new' | 'favorite'
+export type StudyMode = 'review' | 'new' | 'favorite' | 'difficult' | 'relearn'
 
 /**
  * 自動同步分數到排行榜（靜默失敗）
@@ -53,6 +53,7 @@ interface StudyState {
   reset: () => void
   isFinished: () => boolean
   startRetest: () => void
+  toggleCurrentDifficult: () => boolean
 }
 
 export const useStudyStore = create<StudyState>((set, get) => ({
@@ -80,6 +81,15 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       }
     } else if (mode === 'favorite') {
       words = storage.getFavorites(vocabulary)
+    } else if (mode === 'difficult') {
+      words = storage.getDifficultWords(vocabulary)
+    } else if (mode === 'relearn') {
+      words = storage.getLearnedWords(vocabulary, level)
+      // 如果不是「完成整個級別」模式，限制單字數量
+      if (!completeLevel) {
+        const settings = storage.getSettings()
+        words = words.slice(0, settings.words_per_session)
+      }
     }
 
     // 打亂順序
@@ -218,5 +228,14 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       history: [],
       wrongWords: [],
     })
+  },
+
+  // 切換當前單字的困難狀態
+  toggleCurrentDifficult: () => {
+    const { words, currentIndex } = get()
+    if (currentIndex >= words.length) return false
+
+    const word = words[currentIndex]
+    return storage.toggleDifficult(word.id)
   },
 }))

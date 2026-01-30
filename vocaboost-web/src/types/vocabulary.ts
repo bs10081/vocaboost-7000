@@ -19,7 +19,12 @@ export interface LearningProgress {
   is_favorite: boolean // 是否收藏
   last_reviewed: string // 最後複習時間 (ISO string)
   consecutive_failures?: number // 連續答錯次數（向後兼容，可選）
+  is_difficult?: boolean // 困難單字標記（向後兼容，可選）
+  marked_difficult_at?: string // 標記為困難的時間（ISO string，可選）
 }
+
+// 困難單字自動標記閾值（連續答錯次數）
+export const DIFFICULT_THRESHOLD = 5
 
 // 學習統計
 export interface StudySession {
